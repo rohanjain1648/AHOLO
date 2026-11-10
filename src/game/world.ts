@@ -1,8 +1,8 @@
 import { SpatialGrid } from "../core/grid";
 import { angleTo, clamp, dist, dist2, len, RNG, TAU } from "../core/math";
 import type { Audio } from "../core/audio";
-import { COOP, DIRECTOR, PALETTE, PLAYER, WORLD, xpForLevel } from "./config";
-import type { EnemyKind } from "./config";
+import { COOP, DIRECTOR, isBossKind, PALETTE, PHASES, PLAYER, SPACE, WORLD, xpForLevel } from "./config";
+import type { EnemyKind, Phase } from "./config";
 import { ARCHETYPES, isArchetypeId, type ArchetypeId } from "./archetypes";
 import { applyEffect, type Effect, type HapticKind } from "./effects";
 import { chooseKind, Director, initEnemy, ringPoint, shooterConfig } from "./enemies";
@@ -68,6 +68,12 @@ export class World {
   readonly pings: Ping[] = [];
 
   time = 0;
+  /** Where the run is: fighting on the ground, flying up, in orbit, or dropping back down. */
+  phase: Phase = "surface";
+  /** Seconds since the current phase began. */
+  phaseT = 0;
+  /** Completed surface -> orbit -> surface loops; each one toughens the swarm. */
+  loop = 0;
   kills = 0;
   level = 1;
   xp = 0;
@@ -179,7 +185,10 @@ export class World {
     this.novaRings.length = 0;
     this.pings.length = 0;
     this.particles.reset();
-    this.director.reset();
+    this.director.reset("land");
+    this.phase = "surface";
+    this.phaseT = 0;
+    this.loop = 0;
     this.time = 0;
     this.kills = 0;
     this.level = 1;
@@ -232,21 +241,83 @@ export class World {
     return g;
   }
 
-  /** Enemy HP multiplier for the current squad size (1 in solo). */
+  /** Enemy HP multiplier for the current squad size (1 in solo) and completed loops. */
   private get hpMul(): number {
-    return 1 + COOP.hpPerExtra * (this.activeCount - 1);
+    return (1 + COOP.hpPerExtra * (this.activeCount - 1)) * PHASES.loopHpMul ** this.loop;
   }
 
-  private spawnEnemyAt = (kind: EnemyKind, x: number, y: number): void => {
+  /** Spawn one enemy now. Public for the crowd/Forge features and tests. */
+  spawnEnemy(kind: EnemyKind, x: number, y: number): Enemy {
     const e = this.acquireEnemy();
     initEnemy(e, kind, x, y, this.time, this.hpMul);
-    if (kind === "boss") {
+    if (kind === "asteroid") {
+      // Rocks don't chase: they cross the field in a straight line, roughly toward the squad.
+      const p = this.nearestLiving(x, y) ?? this.player;
+      const a = angleTo(x, y, p.x, p.y) + (this.rng.next() - 0.5) * 1.2;
+      e.vx = Math.cos(a) * e.speed;
+      e.vy = Math.sin(a) * e.speed;
+    }
+    if (isBossKind(kind)) {
       this.boss = e;
       this.emit({ k: "sfx", n: "bossWarn", slot: -1 });
       this.emit({ k: "flash", color: "255,200,90", i: 0.7, slot: -1 });
       this.emit({ k: "trauma", v: 0.6, slot: -1 });
     }
+    return e;
+  }
+
+  private spawnEnemyAt = (kind: EnemyKind, x: number, y: number): void => {
+    this.spawnEnemy(kind, x, y);
   };
+
+  /**
+   * Enter a phase. Launch and descent wipe the field (no XP for the wiped
+   * enemies; dropped gems are banked during the flight) and freeze the squad.
+   */
+  setPhase(phase: Phase): void {
+    this.phase = phase;
+    this.phaseT = 0;
+    if (phase === "launch" || phase === "descent") {
+      for (const e of this.enemies) {
+        if (e.dead) continue;
+        this.emit({ k: "spark", x: e.x, y: e.y, color: e.color, count: 8, speed: 300, size: 3 });
+        e.dead = true;
+      }
+      for (const b of this.enemyBullets) b.dead = true;
+      this.boss = null;
+      this.director.bossActive = false;
+      for (const p of this.players) p.vx = p.vy = 0;
+      this.emit({ k: "sfx", n: "bossWarn", slot: -1 });
+      this.emit({ k: "flash", color: phase === "launch" ? "140,200,255" : "255,170,110", i: 0.6, slot: -1 });
+      this.emit({ k: "trauma", v: 0.5, slot: -1 });
+    } else {
+      this.director.reset(phase === "orbit" ? "space" : "land");
+    }
+  }
+
+  /** Launch / descent: nobody moves or gets hurt; gems fly home; then the next phase starts. */
+  private stepTransition(dt: number): void {
+    this.phaseT += dt;
+    for (const p of this.players) {
+      if (!p.active) continue;
+      p.vx = p.vy = 0;
+      p.invuln = Math.max(p.invuln, 0.6);
+    }
+    const banker = this.players.find((p) => this.isLiving(p)) ?? this.player;
+    for (const g of this.gems) {
+      if (g.dead) continue;
+      g.dead = true;
+      if (g.kind === "xp") this.addXp(g.value * banker.xpMul);
+    }
+    const duration = this.phase === "launch" ? PHASES.launchSeconds : PHASES.descentSeconds;
+    if (this.phaseT < duration) return;
+    if (this.phase === "launch") {
+      this.setPhase("orbit");
+    } else {
+      this.loop++;
+      this.setPhase("surface");
+    }
+  }
 
   private aliveEnemyCount(): number {
     let n = 0;
@@ -278,6 +349,12 @@ export class World {
   update(dt: number, inputs: readonly PlayerInput[]): void {
     if (this.gameOver) return;
     this.time += dt;
+    if (this.phase === "launch" || this.phase === "descent") {
+      this.stepTransition(dt);
+      this.tickCosmetics(dt);
+      return;
+    }
+    this.phaseT += dt;
 
     for (const p of this.players) {
       if (this.isLiving(p) && !p.remote) this.stepPlayerMovement(p, inputs[p.slot] ?? IDLE_INPUT, dt);
@@ -315,11 +392,14 @@ export class World {
     this.updateRevives(dt);
     this.updatePings(dt);
 
-    const centre = this.spawnCentre();
-    this.director.update(
-      dt, this.time, centre.x, centre.y, this.viewRadius, this.aliveEnemyCount(), this.rng, this.spawnEnemyAt,
-      1 + COOP.spawnPerExtra * (this.activeCount - 1),
-    );
+    // A boss kill earlier in this step may have started a launch/descent: no new waves then.
+    if (this.phase === "surface" || this.phase === "orbit") {
+      const centre = this.spawnCentre();
+      this.director.update(
+        dt, this.time, centre.x, centre.y, this.viewRadius, this.aliveEnemyCount(), this.rng, this.spawnEnemyAt,
+        1 + COOP.spawnPerExtra * (this.activeCount - 1),
+      );
+    }
     this.tickCosmetics(dt);
 
     for (const p of this.players) if (this.isLiving(p) && p.hp <= 0) this.down(p);
@@ -340,13 +420,34 @@ export class World {
    * code the host runs.
    */
   stepPlayerMovement(p: Player, input: PlayerInput, dt: number): void {
-    const targetVx = input.moveX * p.speed;
-    const targetVy = input.moveY * p.speed;
-    // Snappy but not instant — small accel for weightiness.
-    p.vx += (targetVx - p.vx) * Math.min(1, dt * 16);
-    p.vy += (targetVy - p.vy) * Math.min(1, dt * 16);
-    p.x = clamp(p.x + p.vx * dt, -WORLD.half, WORLD.half);
-    p.y = clamp(p.y + p.vy * dt, -WORLD.half, WORLD.half);
+    if (this.phase === "launch" || this.phase === "descent") return;
+    if (this.phase === "orbit") {
+      // Ship: thrust adds velocity, a little drag bleeds it off, so you drift and slide.
+      const max = p.speed * SPACE.speedMul;
+      p.vx += input.moveX * SPACE.thrust * dt;
+      p.vy += input.moveY * SPACE.thrust * dt;
+      const keep = Math.exp(-SPACE.drag * dt);
+      p.vx *= keep;
+      p.vy *= keep;
+      const sp = len(p.vx, p.vy);
+      if (sp > max) {
+        p.vx = (p.vx / sp) * max;
+        p.vy = (p.vy / sp) * max;
+      }
+    } else {
+      const targetVx = input.moveX * p.speed;
+      const targetVy = input.moveY * p.speed;
+      // Snappy but not instant — small accel for weightiness.
+      p.vx += (targetVx - p.vx) * Math.min(1, dt * 16);
+      p.vy += (targetVy - p.vy) * Math.min(1, dt * 16);
+    }
+    const nx = p.x + p.vx * dt;
+    const ny = p.y + p.vy * dt;
+    // Hitting the arena edge kills that axis of velocity (matters for drifting ships).
+    if (Math.abs(nx) > WORLD.half) p.vx = 0;
+    if (Math.abs(ny) > WORLD.half) p.vy = 0;
+    p.x = clamp(nx, -WORLD.half, WORLD.half);
+    p.y = clamp(ny, -WORLD.half, WORLD.half);
 
     // Twin-input control: keys move the robot; the held cursor only turns it
     // and fires — it never moves it. Aim wins over movement for facing, and
@@ -356,6 +457,8 @@ export class World {
       p.facing = Math.atan2(input.aimY, input.aimX);
     } else if (input.moveX !== 0 || input.moveY !== 0) {
       p.facing = Math.atan2(input.moveY, input.moveX);
+    } else if (this.phase === "orbit" && len(p.vx, p.vy) > 40) {
+      p.facing = Math.atan2(p.vy, p.vx); // a coasting ship points where it drifts
     }
   }
 
@@ -400,13 +503,14 @@ export class World {
   /** The crowd voted for chaos: an extra wave rings the squad, within the usual enemy cap. */
   crowdSurge(): void {
     const living = this.players.filter((p) => this.isLiving(p));
-    if (living.length === 0) return;
+    if (living.length === 0 || this.phase === "launch" || this.phase === "descent") return;
     const room = DIRECTOR.maxEnemies - this.aliveEnemyCount();
     const n = Math.min(room, 6 + 2 * living.length);
     for (let i = 0; i < n; i++) {
       const p = living[i % living.length];
       const [x, y] = ringPoint(p.x, p.y, this.viewRadius + 60, this.rng);
-      this.spawnEnemyAt(chooseKind(this.time, this.rng), x, y);
+      const kind = this.phase === "orbit" ? chooseKind(this.phaseT, this.rng, "space") : chooseKind(this.time, this.rng);
+      this.spawnEnemyAt(kind, x, y);
     }
     this.emit({ k: "sfx", n: "bossWarn", slot: -1 });
     this.emit({ k: "trauma", v: 0.4, slot: -1 });
@@ -471,17 +575,27 @@ export class World {
       if (e.punchT > 0) e.punchT = Math.max(0, e.punchT - dt);
 
       const p = this.nearestLiving(e.x, e.y) ?? this.player;
-      const a = angleTo(e.x, e.y, p.x, p.y);
-      const spawnBoost = e.spawnT < 0.4 ? 0 : 1; // brief pause as they fade in
-      e.vx = Math.cos(a) * e.speed * spawnBoost;
-      e.vy = Math.sin(a) * e.speed * spawnBoost;
+      let a = angleTo(e.x, e.y, p.x, p.y);
+      if (e.kind !== "asteroid") {
+        // Interceptors weave on their approach instead of flying straight in.
+        if (e.kind === "interceptor") a += Math.sin(this.time * 2.4 + i * 1.7) * 0.75;
+        const spawnBoost = e.spawnT < 0.4 ? 0 : 1; // brief pause as they fade in
+        e.vx = Math.cos(a) * e.speed * spawnBoost;
+        e.vy = Math.sin(a) * e.speed * spawnBoost;
+      }
 
       // Knockback decays quickly and adds to motion.
       e.kbx *= 1 - Math.min(1, dt * 8);
       e.kby *= 1 - Math.min(1, dt * 8);
 
-      e.x = clamp(e.x + (e.vx + e.kbx) * dt, -WORLD.half, WORLD.half);
-      e.y = clamp(e.y + (e.vy + e.kby) * dt, -WORLD.half, WORLD.half);
+      const nx = e.x + (e.vx + e.kbx) * dt;
+      const ny = e.y + (e.vy + e.kby) * dt;
+      if (e.kind === "asteroid" && (Math.abs(nx) > WORLD.half || Math.abs(ny) > WORLD.half)) {
+        e.dead = true; // drifted out of the arena
+        continue;
+      }
+      e.x = clamp(nx, -WORLD.half, WORLD.half);
+      e.y = clamp(ny, -WORLD.half, WORLD.half);
 
       // Ranged enemies + boss fire at the player they're chasing.
       const sc = shooterConfig(e.kind);
@@ -668,6 +782,9 @@ export class World {
         this.dropGem(gx, gy, Math.ceil(e.xp / 24), "xp");
       }
       this.dropGem(e.x, e.y, 0, "heal");
+      // Each boss ends its half of the loop.
+      if (e.kind === "boss" && this.phase === "surface") this.setPhase("launch");
+      else if (e.kind === "capital" && this.phase === "orbit") this.setPhase("descent");
     } else {
       this.emit({ k: "sfx", n: "kill", slot: -1 });
       this.emit({ k: "trauma", v: 0.08, slot: -1 });
@@ -704,7 +821,17 @@ export class World {
     for (const p of this.players) {
       if (!this.isLiving(p)) continue;
       this.grid.query(p.x, p.y, p.radius + 70, (e) => {
+        if (e.dead) return;
         if (dist(p.x, p.y, e.x, e.y) <= p.radius + e.radius) {
+          if (e.kind === "kamikaze") {
+            // Kamikazes detonate on contact, hit or not.
+            if (p.takeDamage(e.touchDamage)) this.onPlayerHurt(p);
+            e.dead = true;
+            this.emit({ k: "spark", x: e.x, y: e.y, color: e.color, count: 24, speed: 380, size: 4 });
+            this.emit({ k: "sfx", n: "kill", slot: -1 });
+            this.emit({ k: "trauma", v: 0.3, slot: p.slot });
+            return;
+          }
           if (p.takeDamage(e.touchDamage)) {
             this.onPlayerHurt(p);
             e.punchT = 0.35;

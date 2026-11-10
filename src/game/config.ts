@@ -29,7 +29,30 @@ export const PALETTE = {
   danger: "#ff3d6e",
 } as const;
 
-export type EnemyKind = "grunt" | "fast" | "tank" | "splitter" | "shooter" | "boss";
+export type LandKind = "grunt" | "fast" | "tank" | "splitter" | "shooter";
+export type SpaceKind = "interceptor" | "bomber" | "kamikaze" | "asteroid";
+export type EnemyKind = LandKind | SpaceKind | "boss" | "capital";
+
+/** Run structure: surface -> (land boss dies) launch -> orbit -> (capital dies) descent -> surface, looping. */
+export type Phase = "surface" | "launch" | "orbit" | "descent";
+
+export const PHASES = {
+  launchSeconds: 4,
+  descentSeconds: 3,
+  /** Seconds of orbit before the capital ship warps in. */
+  orbitBossDelay: 40,
+  /** Each completed loop multiplies enemy HP by this. */
+  loopHpMul: 1.35,
+};
+
+/** Ship handling in orbit: thrust and inertia instead of instant steering. */
+export const SPACE = {
+  thrust: 820,
+  /** Fraction of velocity lost per second with no thrust (low = long drift). */
+  drag: 0.9,
+  /** Top speed relative to the robot's ground speed. */
+  speedMul: 1.6,
+};
 
 /** Which RobotExpressive.glb clip an enemy tier walks/idles with. */
 export type RobotAnim = "Walking" | "Running" | "Idle";
@@ -55,7 +78,7 @@ export interface EnemyDef {
   splitInto?: EnemyKind;
 }
 
-export const ENEMIES: Record<Exclude<EnemyKind, "boss">, EnemyDef> = {
+export const ENEMIES: Record<LandKind, EnemyDef> = {
   grunt: {
     kind: "grunt",
     color: "#ff3d9a",
@@ -145,6 +168,98 @@ export const BOSS: EnemyDef = {
   weight: 0,
   shooter: { range: 900, cooldown: 1.4, bulletSpeed: 200, bulletDmg: 14 },
 };
+
+/**
+ * Orbit roster. unlockAt is seconds into the current orbit, not run time.
+ * Ships and rocks are rigid models, so `anim` only drives procedural motion.
+ */
+export const SPACE_ENEMIES: Record<SpaceKind, EnemyDef> = {
+  interceptor: {
+    kind: "interceptor",
+    color: "#ff4fd8",
+    radius: 16,
+    modelScale: 1,
+    anim: "Running",
+    animSpeed: 1,
+    baseHp: 12,
+    baseSpeed: 150,
+    touchDamage: 8,
+    xp: 4,
+    unlockAt: 0,
+    weight: 10,
+    shooter: { range: 420, cooldown: 2.6, bulletSpeed: 320, bulletDmg: 8 },
+  },
+  kamikaze: {
+    kind: "kamikaze",
+    color: "#ff8a2b",
+    radius: 13,
+    modelScale: 0.8,
+    anim: "Running",
+    animSpeed: 1.4,
+    baseHp: 5,
+    baseSpeed: 230,
+    touchDamage: 18,
+    xp: 3,
+    unlockAt: 6,
+    weight: 6,
+  },
+  bomber: {
+    kind: "bomber",
+    color: "#9d7bff",
+    radius: 28,
+    modelScale: 1.8,
+    anim: "Walking",
+    animSpeed: 0.6,
+    baseHp: 70,
+    baseSpeed: 48,
+    touchDamage: 16,
+    xp: 12,
+    unlockAt: 12,
+    weight: 3,
+    shooter: { range: 640, cooldown: 2.4, bulletSpeed: 200, bulletDmg: 12 },
+  },
+  asteroid: {
+    kind: "asteroid",
+    color: "#9aa4b8",
+    radius: 30,
+    modelScale: 1.6,
+    anim: "Idle",
+    animSpeed: 1,
+    baseHp: 30,
+    baseSpeed: 55,
+    touchDamage: 14,
+    xp: 6,
+    unlockAt: 0,
+    weight: 4,
+  },
+};
+
+export const SPACE_KINDS = Object.keys(SPACE_ENEMIES) as SpaceKind[];
+
+export const CAPITAL: EnemyDef = {
+  kind: "capital",
+  color: "#ffb44d",
+  radius: 90,
+  modelScale: 4.2,
+  anim: "Idle",
+  animSpeed: 0.4,
+  baseHp: 1500,
+  baseSpeed: 30,
+  touchDamage: 30,
+  xp: 400,
+  unlockAt: 0,
+  weight: 0,
+  shooter: { range: 1100, cooldown: 1.1, bulletSpeed: 230, bulletDmg: 14 },
+};
+
+/** Stats for any enemy kind. */
+export const defFor = (kind: EnemyKind): EnemyDef => {
+  if (kind === "boss") return BOSS;
+  if (kind === "capital") return CAPITAL;
+  return (ENEMIES as Record<string, EnemyDef>)[kind] ?? SPACE_ENEMIES[kind as SpaceKind];
+};
+
+export const isBossKind = (kind: EnemyKind): boolean => kind === "boss" || kind === "capital";
 
 export const DIRECTOR = {
   /** Seconds between the escalating "phase" bumps. */

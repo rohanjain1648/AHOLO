@@ -1,4 +1,4 @@
-import { BOSS, ENEMIES, type EnemyKind } from "../game/config";
+import { defFor, isBossKind, type EnemyKind, type Phase } from "../game/config";
 import type { Effect } from "../game/effects";
 import type { Bullet, Enemy, EnemyBullet, Gem } from "../game/types";
 import type { World } from "../game/world";
@@ -69,6 +69,9 @@ export interface Snapshot {
   /** Bit per slot still choosing in an open level-up huddle. */
   waitingMask: number;
   gameOver: boolean;
+  phase: Phase;
+  phaseT: number;
+  loop: number;
   players: PlayerSnap[];
   enemies: EnemySnap[];
   bullets: PoolSnap[];
@@ -79,8 +82,12 @@ export interface Snapshot {
   effects: Effect[];
 }
 
-const KINDS: EnemyKind[] = ["grunt", "fast", "tank", "splitter", "shooter", "boss"];
-const VERSION = 3;
+const KINDS: EnemyKind[] = [
+  "grunt", "fast", "tank", "splitter", "shooter", "boss",
+  "interceptor", "bomber", "kamikaze", "asteroid", "capital",
+];
+const PHASE_IDS: Phase[] = ["surface", "launch", "orbit", "descent"];
+const VERSION = 4;
 /** A pooled bullet/gem that moved further than this between snapshots is a recycled slot, not motion. */
 const REUSE_JUMP = 150;
 
@@ -110,6 +117,9 @@ export function captureSnapshot(w: World, seq: number, waitingMask: number, effe
     bossHp: w.bossHpFraction ?? -1,
     waitingMask,
     gameOver: w.gameOver,
+    phase: w.phase,
+    phaseT: w.phaseT,
+    loop: w.loop,
     players: w.players.map((p) => ({
       slot: p.slot, active: p.active, x: p.x, y: p.y, vx: p.vx, vy: p.vy, facing: p.facing,
       hp: p.hp, maxHp: p.maxHp, downed: p.downed, reviveT: p.reviveT, invuln: p.invuln,
@@ -173,6 +183,9 @@ export function encodeSnapshot(s: Snapshot): Uint8Array {
   w.f32(s.bossHp);
   w.u8(s.waitingMask);
   w.u8(s.gameOver ? 1 : 0);
+  w.u8(PHASE_IDS.indexOf(s.phase));
+  w.f32(s.phaseT);
+  w.u8(s.loop);
 
   w.u8(s.players.length);
   for (const p of s.players) {
@@ -252,6 +265,9 @@ export function decodeSnapshot(buf: ArrayBuffer | Uint8Array): Snapshot {
     bossHp: r.f32(),
     waitingMask: r.u8(),
     gameOver: r.u8() === 1,
+    phase: PHASE_IDS[r.u8()] ?? "surface",
+    phaseT: r.f32(),
+    loop: r.u8(),
     players: [],
     enemies: [],
     bullets: [],
@@ -324,6 +340,9 @@ export function applySnapshot(w: World, a: Snapshot, b: Snapshot, t: number, loc
   w.xpToNext = b.xpToNext;
   w.kills = b.kills;
   w.gameOver = b.gameOver;
+  w.phase = b.phase;
+  w.phaseT = lerp(a.phase === b.phase ? a.phaseT : b.phaseT, b.phaseT, t);
+  w.loop = b.loop;
   w.bossHpOverride = b.bossHp < 0 ? null : b.bossHp;
 
   // Players
@@ -367,10 +386,10 @@ export function applySnapshot(w: World, a: Snapshot, b: Snapshot, t: number, loc
     // A slot the host recycled for a fresh spawn restarts its spawn timer:
     // draw it where it is, not sliding over from the enemy that died there.
     const from = prev && prev.kind === eb.kind && eb.spawnT >= prev.spawnT ? prev : eb;
-    const def = eb.kind === "boss" ? BOSS : ENEMIES[eb.kind];
+    const def = defFor(eb.kind);
     e.dead = false;
     e.kind = eb.kind;
-    e.isBoss = eb.kind === "boss";
+    e.isBoss = isBossKind(eb.kind);
     e.x = lerp(from.x, eb.x, t);
     e.y = lerp(from.y, eb.y, t);
     e.flash = eb.flash;

@@ -1,4 +1,4 @@
-import { BOSS, DIRECTOR, ENEMIES, WORLD } from "./config";
+import { defFor, DIRECTOR, ENEMIES, isBossKind, PHASES, SPACE_ENEMIES, WORLD } from "./config";
 import type { EnemyDef, EnemyKind } from "./config";
 import type { Enemy } from "./types";
 import { clamp, RNG, TAU } from "../core/math";
@@ -17,13 +17,10 @@ export const spawnInterval = (t: number): number => {
 /** How many enemies to release per tick, grows slowly with time. */
 const batchSize = (t: number): number => DIRECTOR.batchBase + Math.floor(t / DIRECTOR.batchGrowthSeconds);
 
-const defFor = (kind: EnemyKind): EnemyDef =>
-  kind === "boss" ? BOSS : ENEMIES[kind as Exclude<EnemyKind, "boss">];
-
 /** Populate a (possibly recycled) enemy struct in place. */
 export function initEnemy(e: Enemy, kind: EnemyKind, x: number, y: number, t: number, hpMul = 1): void {
   const def = defFor(kind);
-  const boss = kind === "boss";
+  const boss = isBossKind(kind);
   const hs = hpScale(t) * (boss ? 1 + t / 240 : 1) * hpMul;
   const ss = speedScale(t);
   e.kind = kind;
@@ -54,12 +51,17 @@ export function initEnemy(e: Enemy, kind: EnemyKind, x: number, y: number, t: nu
 
 export const shooterConfig = (kind: EnemyKind) => defFor(kind).shooter;
 
-/** Weighted pick of an unlocked enemy kind for the current run time. */
-export function chooseKind(t: number, rng: RNG): EnemyKind {
+export type Roster = "land" | "space";
+
+/**
+ * Weighted pick of an unlocked enemy kind. `t` is run time for the land
+ * roster and seconds into the current orbit for the space roster.
+ */
+export function chooseKind(t: number, rng: RNG, roster: Roster = "land"): EnemyKind {
   let total = 0;
   const eligible: EnemyDef[] = [];
-  for (const key of Object.keys(ENEMIES) as Exclude<EnemyKind, "boss">[]) {
-    const d = ENEMIES[key];
+  const pool: Record<string, EnemyDef> = roster === "space" ? SPACE_ENEMIES : ENEMIES;
+  for (const d of Object.values(pool)) {
     if (t >= d.unlockAt) {
       eligible.push(d);
       total += d.weight;
@@ -70,7 +72,7 @@ export function chooseKind(t: number, rng: RNG): EnemyKind {
     r -= d.weight;
     if (r <= 0) return d.kind;
   }
-  return "grunt";
+  return roster === "space" ? "interceptor" : "grunt";
 }
 
 /**
@@ -82,10 +84,16 @@ export class Director {
   private bossTimer = DIRECTOR.bossEverySeconds;
   bossPending = false;
   bossActive = false;
+  /** Land waves + the Warden, or orbit waves + the capital ship. */
+  roster: Roster = "land";
+  /** Seconds since this roster started (the space roster unlocks by orbit time). */
+  private rosterT = 0;
 
-  reset(): void {
-    this.spawnTimer = spawnInterval(0);
-    this.bossTimer = DIRECTOR.bossEverySeconds;
+  reset(roster: Roster = "land"): void {
+    this.roster = roster;
+    this.rosterT = 0;
+    this.spawnTimer = roster === "space" ? 1 : spawnInterval(0);
+    this.bossTimer = roster === "space" ? PHASES.orbitBossDelay : DIRECTOR.bossEverySeconds;
     this.bossPending = false;
     this.bossActive = false;
   }
@@ -101,12 +109,13 @@ export class Director {
     spawn: (kind: EnemyKind, x: number, y: number) => void,
     spawnRateMul = 1,
   ): void {
+    this.rosterT += dt;
     // Boss cadence
     this.bossTimer -= dt;
     if (this.bossTimer <= 0 && !this.bossActive) {
       this.bossTimer = DIRECTOR.bossEverySeconds;
       const [bx, by] = ringPoint(px, py, viewRadius + 120, rng);
-      spawn("boss", bx, by);
+      spawn(this.roster === "space" ? "capital" : "boss", bx, by);
       this.bossActive = true;
       this.bossPending = true;
     }
@@ -123,7 +132,7 @@ export class Director {
           n = Math.floor(scaled) + (rng.next() < scaled - Math.floor(scaled) ? 1 : 0);
         }
         for (let i = 0; i < n; i++) {
-          const kind = chooseKind(t, rng);
+          const kind = this.roster === "space" ? chooseKind(this.rosterT, rng, "space") : chooseKind(t, rng);
           const [x, y] = ringPoint(px, py, viewRadius + 60 + rng.next() * 120, rng);
           spawn(kind, x, y);
         }

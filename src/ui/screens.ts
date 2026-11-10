@@ -1,5 +1,5 @@
 import { BOSS, ENEMIES, PALETTE } from "../game/config";
-import type { EnemyKind } from "../game/config";
+import type { EnemyKind, LandKind } from "../game/config";
 import type { UpgradeCard } from "../game/upgrades";
 import type { RunStats } from "../game/world";
 import { formatTime } from "./hud";
@@ -124,6 +124,11 @@ const ENEMY_LABELS: Record<EnemyKind, string> = {
   splitter: "Splitter",
   shooter: "Shooter",
   boss: "Warden",
+  interceptor: "Interceptor",
+  bomber: "Bomber",
+  kamikaze: "Kamikaze",
+  asteroid: "Asteroid",
+  capital: "Capital Ship",
 };
 
 interface LegendItem {
@@ -285,7 +290,7 @@ export function drawTitle(
 
   // Enemy roster + weapon legend, sourced straight from the enemy/palette
   // data so it can't drift out of sync with the actual in-game colors.
-  const enemyItems: LegendItem[] = (Object.keys(ENEMIES) as Exclude<EnemyKind, "boss">[]).map((k) => ({
+  const enemyItems: LegendItem[] = (Object.keys(ENEMIES) as LandKind[]).map((k) => ({
     color: ENEMIES[k].color,
     label: ENEMY_LABELS[k],
   }));
