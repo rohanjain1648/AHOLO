@@ -14,7 +14,9 @@
 // prompts ask for strong silhouettes and one bright accent color per unit.
 // Humanoids are prompted in a T-pose because the auto-rigger expects it.
 
-const TPOSE = "full body, standing in a T-pose with arms straight out to the sides, centered, plain background, game character";
+// The auto-rigger rejects bent knees or a non-upright body (MODEL_NOT_RIGGABLE),
+// so never ask for hunched, crouching or action poses.
+const TPOSE = "full body, standing perfectly upright with straight legs, in a T-pose with arms straight out to the sides, centered, plain background, game character";
 
 const WALKER = ["Idle_Loop", "Walk_Loop", "Sprint_Loop", "Death01", "Hit_Chest"];
 
@@ -33,7 +35,7 @@ export const CAST = [
   {
     id: "enemy.grunt",
     phase: "land",
-    prompt: `a rusty scrap-metal robot soldier, mismatched armor plates, single red glowing eye, hunched posture, ${TPOSE}`,
+    prompt: `a rusty scrap-metal robot soldier, mismatched armor plates, single red glowing eye, ${TPOSE}`,
     style: "cyberpunk",
     rig: "humanoid",
     anims: ["Idle_Loop", "Zombie_Walk_Fwd_Loop", "Sprint_Loop", "Death01"],

@@ -127,7 +127,8 @@ function createGenerated(m: LoadedModel): RobotHandle {
   const applyGlow = () => {
     for (const mat of mats) {
       mat.emissive.setHex(flashing ? 0xffffff : tint);
-      mat.emissiveIntensity = flashing ? 0.9 : 0.22;
+      // Keep the accent faint so the Lux3D texture, not the tier color, carries the look.
+      mat.emissiveIntensity = flashing ? 0.9 : 0.08;
     }
   };
 

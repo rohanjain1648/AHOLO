@@ -1,1 +1,19 @@
-{ "version": 1, "models": {} }
+{
+  "version": 1,
+  "models": {
+    "enemy.grunt": {
+      "file": "gen/enemy-grunt.glb",
+      "kind": "skinned",
+      "clips": {
+        "Idle": "Idle_Loop",
+        "Walking": "Zombie_Walk_Fwd_Loop",
+        "Running": "Sprint_Loop",
+        "Death": "Death01"
+      },
+      "yaw": 0,
+      "heightMul": 1,
+      "prompt": "a rusty scrap-metal robot soldier, mismatched armor plates, single red glowing eye, full body, standing perfectly upright with straight legs, in a T-pose with arms straight out to the sides, centered, plain background, game character",
+      "tris": 5462
+    }
+  }
+}

@@ -50,6 +50,8 @@ describe("taskState", () => {
 describe("rigError", () => {
   it("detects the JSON error a failed auto-rig returns", () => {
     expect(lib.rigError(JSON.stringify({ error: "not humanoid" }))).toBe("not humanoid");
+    const real = JSON.stringify({ error: { code: "MODEL_NOT_RIGGABLE", message: "knees bent" } });
+    expect(lib.rigError(real)).toBe("MODEL_NOT_RIGGABLE: knees bent");
     expect(lib.rigError("https://cdn.example/rigged.glb")).toBeNull();
   });
 });
@@ -62,6 +64,18 @@ describe("autoClipMap", () => {
 
   it("prefers sprint over jog for Running but accepts jog", () => {
     expect(lib.autoClipMap(["Jog_Fwd_Loop"]).Running).toBe("Jog_Fwd_Loop");
+  });
+});
+
+describe("clipRenames", () => {
+  it("names Lux3D's generic animation_N clips after the requested ids, in order", () => {
+    expect(lib.clipRenames(["animation_1", "animation_2"], ["Idle_Loop", "Death01"])).toEqual(["Idle_Loop", "Death01"]);
+  });
+
+  it("leaves real names alone and refuses when counts differ", () => {
+    expect(lib.clipRenames(["Idle_Loop"], ["Idle_Loop"])).toBeNull();
+    expect(lib.clipRenames(["animation_1"], ["Idle_Loop", "Death01"])).toBeNull();
+    expect(lib.clipRenames(["animation_1"], undefined)).toBeNull();
   });
 });
 

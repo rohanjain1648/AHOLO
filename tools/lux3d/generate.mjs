@@ -1,11 +1,14 @@
 #!/usr/bin/env node
 // Lux3D asset pipeline: generate -> (auto-rig -> retarget) -> download -> optimize -> manifest.
 //
-//   npm run assets                       dry run: show what would be created (spends nothing)
-//   npm run assets -- --yes              create tasks and run the pipeline (spends credits)
-//   npm run assets -- --only enemy.grunt --yes
-//   npm run assets -- --phase land --yes
-//   npm run assets -- --reset enemy.grunt    forget saved state for an asset (regenerate it)
+// Run with node directly: PowerShell swallows the "--" in "npm run assets -- ...".
+//
+//   node tools/lux3d/generate.mjs                          dry run (spends nothing)
+//   node tools/lux3d/generate.mjs --yes                    run the pipeline (spends credits)
+//   node tools/lux3d/generate.mjs --only enemy.grunt --yes
+//   node tools/lux3d/generate.mjs --phase land --yes
+//   node tools/lux3d/generate.mjs --reset enemy.grunt      forget saved state (regenerate)
+//   node tools/lux3d/generate.mjs --only enemy.grunt --reoptimize enemy.grunt   redo the free shrink step
 //
 // Resumable: task ids and result URLs are saved to tools/lux3d/state.json after
 // every step, so a crash or Ctrl+C never pays for the same task twice. Result
@@ -42,6 +45,7 @@ const SPEND = flag("--yes");
 const only = opt("--only")?.split(",");
 const phase = opt("--phase");
 const reset = opt("--reset");
+const reoptimize = opt("--reoptimize"); // re-run only the free local shrink step for an id
 const concurrency = Number(opt("--concurrency") || 3);
 
 const readJson = (f, fallback) => (existsSync(f) ? JSON.parse(readFileSync(f, "utf8")) : fallback);
@@ -59,6 +63,10 @@ if (reset) {
   console.log(`reset ${reset}`);
   process.exit(0);
 }
+if (reoptimize && state[reoptimize]) {
+  state[reoptimize].optimized = false;
+  saveState();
+}
 
 const env = { ...parseEnv(existsSync(join(ROOT, ".env.local")) ? readFileSync(join(ROOT, ".env.local"), "utf8") : ""), ...process.env };
 const fileId = (id) => id.replace(/\./g, "-");
@@ -72,7 +80,10 @@ async function poll(api, taskId, label) {
     const d = await api.getTask(taskId);
     const s = taskState(d.status);
     if (s === "succeeded") return { outputs: d.outputs || [], ms: Date.now() - start };
-    if (s === "failed") throw new Error(`${label}: task ${taskId} ended with status ${d.status}`);
+    if (s === "failed") {
+      const detail = (d.outputs || []).map((o) => (o && o.content) || "").map((c) => rigError(c) || c).filter(Boolean).join("; ");
+      throw new Error(`${label}: task ${taskId} ended with status ${d.status}${detail ? `: ${detail}` : ""}`);
+    }
     if (Date.now() - start > POLL_TIMEOUT_MS) throw new Error(`${label}: task ${taskId} still running after 30 min`);
     await sleep(POLL_MS);
   }

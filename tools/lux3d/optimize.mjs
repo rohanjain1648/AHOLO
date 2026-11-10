@@ -6,6 +6,7 @@ import { ALL_EXTENSIONS } from "@gltf-transform/extensions";
 import { dedup, meshopt, prune, resample, simplify, textureCompress, weld } from "@gltf-transform/functions";
 import { MeshoptEncoder, MeshoptSimplifier } from "meshoptimizer";
 import sharp from "sharp";
+import { clipRenames } from "./lib.mjs";
 
 function countTris(doc) {
   let tris = 0;
@@ -19,11 +20,15 @@ function countTris(doc) {
   return tris;
 }
 
-export async function optimizeGlb(inPath, outPath, { tris: targetTris, tex }) {
+export async function optimizeGlb(inPath, outPath, { tris: targetTris, tex, anims }) {
   await MeshoptSimplifier.ready;
   await MeshoptEncoder.ready;
   const io = new NodeIO().registerExtensions(ALL_EXTENSIONS).registerDependencies({ "meshopt.encoder": MeshoptEncoder });
   const doc = await io.read(inPath);
+
+  const animations = doc.getRoot().listAnimations();
+  const renames = clipRenames(animations.map((a) => a.getName()), anims);
+  if (renames) animations.forEach((a, i) => a.setName(renames[i]));
 
   const trisBefore = countTris(doc);
   const ratio = Math.min(1, targetTris / Math.max(1, trisBefore));

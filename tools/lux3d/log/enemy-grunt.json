@@ -1,0 +1,32 @@
+{
+  "id": "enemy.grunt",
+  "prompt": "a rusty scrap-metal robot soldier, mismatched armor plates, single red glowing eye, full body, standing perfectly upright with straight legs, in a T-pose with arms straight out to the sides, centered, plain background, game character",
+  "style": "cyberpunk",
+  "rig": "humanoid",
+  "anims": [
+    "Idle_Loop",
+    "Zombie_Walk_Fwd_Loop",
+    "Sprint_Loop",
+    "Death01"
+  ],
+  "tasks": {
+    "generate": 6327368,
+    "rig": 6328378,
+    "retarget": 6328597
+  },
+  "timingsMs": {
+    "generate": 283738,
+    "rig": 56010,
+    "retarget": 11466
+  },
+  "trisFromLux3D": 12748,
+  "trisInGame": 5462,
+  "clips": [
+    "Idle_Loop",
+    "Zombie_Walk_Fwd_Loop",
+    "Sprint_Loop",
+    "Death01"
+  ],
+  "rawBytes": 22032392,
+  "finishedAt": "2026-11-10T21:48:26.268Z"
+}

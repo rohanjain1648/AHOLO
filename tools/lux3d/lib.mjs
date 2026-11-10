@@ -68,7 +68,9 @@ export function rigError(content) {
   if (URL_RE.test(s)) return null;
   try {
     const j = JSON.parse(s);
-    if (j && j.error) return String(j.error);
+    const e = j && j.error;
+    if (e && typeof e === "object") return [e.code, e.message].filter(Boolean).join(": ") || "rig failed";
+    if (e) return String(e);
   } catch {
     /* fall through */
   }
@@ -92,6 +94,17 @@ export function autoClipMap(names) {
   };
   for (const k of Object.keys(map)) if (!map[k]) delete map[k];
   return map;
+}
+
+/**
+ * Combined retarget output names clips animation_1..N in the order the ids were
+ * requested. Returns the new names, or null when no rename is safe or needed.
+ */
+export function clipRenames(names, requested) {
+  if (!Array.isArray(requested) || names.length !== requested.length) return null;
+  if (!names.every((n) => /^animation_\d+$/i.test(n))) return null;
+  const order = names.map((n) => Number(/\d+$/.exec(n)[0]));
+  return order.map((k) => requested[k - 1]).every(Boolean) ? order.map((k) => requested[k - 1]) : null;
 }
 
 /** Which pipeline step an asset needs next, from its saved state. */
