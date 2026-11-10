@@ -14,6 +14,76 @@
       "heightMul": 1,
       "prompt": "a rusty scrap-metal robot soldier, mismatched armor plates, single red glowing eye, full body, standing perfectly upright with straight legs, in a T-pose with arms straight out to the sides, centered, plain background, game character",
       "tris": 5462
+    },
+    "enemy.fast": {
+      "file": "gen/enemy-fast.glb",
+      "kind": "skinned",
+      "clips": {
+        "Idle": "Idle_Loop",
+        "Running": "Sprint_Loop",
+        "Death": "Death01"
+      },
+      "yaw": 0,
+      "heightMul": 1,
+      "prompt": "a thin agile android sprinter, long legs, streamlined chrome body, orange glowing joints, full body, standing perfectly upright with straight legs, in a T-pose with arms straight out to the sides, centered, plain background, game character",
+      "tris": 3000
+    },
+    "player.default": {
+      "file": "gen/player-default.glb",
+      "kind": "skinned",
+      "clips": {
+        "Idle": "Idle_Loop",
+        "Running": "Sprint_Loop",
+        "Death": "Death01"
+      },
+      "yaw": 0,
+      "heightMul": 1,
+      "prompt": "a sleek sci-fi combat robot hero, white and cyan armor plates, glowing cyan visor, small jetpack on its back, full body, standing perfectly upright with straight legs, in a T-pose with arms straight out to the sides, centered, plain background, game character",
+      "tris": 8000
+    },
+    "enemy.tank": {
+      "file": "gen/enemy-tank.glb",
+      "kind": "skinned",
+      "clips": {
+        "Idle": "Idle_Loop",
+        "Walking": "Walk_Loop",
+        "Running": "Sprint_Loop",
+        "Death": "Death01"
+      },
+      "yaw": 0,
+      "heightMul": 1,
+      "prompt": "a hulking heavy armored brute robot, huge shoulders and fists, thick purple armor plating, small head, full body, standing perfectly upright with straight legs, in a T-pose with arms straight out to the sides, centered, plain background, game character",
+      "tris": 4000
+    },
+    "enemy.splitter": {
+      "file": "gen/enemy-splitter.glb",
+      "kind": "rigid",
+      "yaw": 0,
+      "heightMul": 1,
+      "prompt": "a round segmented robot beetle with six short stubby legs, green glowing seams between armor segments, toy-like sci-fi creature, centered, plain background",
+      "tris": 4030
+    },
+    "enemy.shooter": {
+      "file": "gen/enemy-shooter.glb",
+      "kind": "rigid",
+      "yaw": 0,
+      "heightMul": 1,
+      "prompt": "a hovering sci-fi gun turret drone, spherical armored body with twin laser cannons on the front, magenta glowing core, no legs, centered, plain background",
+      "tris": 3602
+    },
+    "enemy.boss": {
+      "file": "gen/enemy-boss.glb",
+      "kind": "skinned",
+      "clips": {
+        "Idle": "Idle_Loop",
+        "Walking": "Walk_Loop",
+        "Running": "Sprint_Loop",
+        "Death": "Death01"
+      },
+      "yaw": 0,
+      "heightMul": 1,
+      "prompt": "a towering war mech boss, massive armored chassis, glowing red reactor core in its chest, shoulder-mounted cannons, menacing, full body, standing perfectly upright with straight legs, in a T-pose with arms straight out to the sides, centered, plain background, game character",
+      "tris": 9688
     }
   }
 }

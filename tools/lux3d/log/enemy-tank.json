@@ -1,0 +1,34 @@
+{
+  "id": "enemy.tank",
+  "prompt": "a hulking heavy armored brute robot, huge shoulders and fists, thick purple armor plating, small head, full body, standing perfectly upright with straight legs, in a T-pose with arms straight out to the sides, centered, plain background, game character",
+  "style": "cyberpunk",
+  "rig": "humanoid",
+  "anims": [
+    "Idle_Loop",
+    "Walk_Loop",
+    "Sprint_Loop",
+    "Death01",
+    "Hit_Chest"
+  ],
+  "tasks": {
+    "generate": 6329989,
+    "rig": 6331356,
+    "retarget": 6331682
+  },
+  "timingsMs": {
+    "generate": 361551,
+    "rig": 90889,
+    "retarget": 11047
+  },
+  "trisFromLux3D": 8398,
+  "trisInGame": 4000,
+  "clips": [
+    "Idle_Loop",
+    "Walk_Loop",
+    "Sprint_Loop",
+    "Death01",
+    "Hit_Chest"
+  ],
+  "rawBytes": 21571148,
+  "finishedAt": "2026-11-10T22:01:46.494Z"
+}

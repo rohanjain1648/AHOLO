@@ -1,0 +1,32 @@
+{
+  "id": "enemy.fast",
+  "prompt": "a thin agile android sprinter, long legs, streamlined chrome body, orange glowing joints, full body, standing perfectly upright with straight legs, in a T-pose with arms straight out to the sides, centered, plain background, game character",
+  "style": "cyberpunk",
+  "rig": "humanoid",
+  "anims": [
+    "Idle_Loop",
+    "Jog_Fwd_Loop",
+    "Sprint_Loop",
+    "Death01"
+  ],
+  "tasks": {
+    "generate": 6329992,
+    "rig": 6331027,
+    "retarget": 6331221
+  },
+  "timingsMs": {
+    "generate": 281706,
+    "rig": 48647,
+    "retarget": 5708
+  },
+  "trisFromLux3D": 7796,
+  "trisInGame": 3000,
+  "clips": [
+    "Idle_Loop",
+    "Jog_Fwd_Loop",
+    "Sprint_Loop",
+    "Death01"
+  ],
+  "rawBytes": 15975264,
+  "finishedAt": "2026-11-10T21:59:36.923Z"
+}

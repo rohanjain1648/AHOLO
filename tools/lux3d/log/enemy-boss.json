@@ -1,0 +1,34 @@
+{
+  "id": "enemy.boss",
+  "prompt": "a towering war mech boss, massive armored chassis, glowing red reactor core in its chest, shoulder-mounted cannons, menacing, full body, standing perfectly upright with straight legs, in a T-pose with arms straight out to the sides, centered, plain background, game character",
+  "style": "cyberpunk",
+  "rig": "humanoid",
+  "anims": [
+    "Idle_Loop",
+    "Walk_Loop",
+    "Sprint_Loop",
+    "Death01",
+    "Hit_Chest"
+  ],
+  "tasks": {
+    "generate": 6331792,
+    "rig": 6332899,
+    "retarget": 6333427
+  },
+  "timingsMs": {
+    "generate": 296125,
+    "rig": 145622,
+    "retarget": 11414
+  },
+  "trisFromLux3D": 9688,
+  "trisInGame": 9688,
+  "clips": [
+    "Idle_Loop",
+    "Walk_Loop",
+    "Sprint_Loop",
+    "Death01",
+    "Hit_Chest"
+  ],
+  "rawBytes": 21018972,
+  "finishedAt": "2026-11-10T22:09:32.464Z"
+}

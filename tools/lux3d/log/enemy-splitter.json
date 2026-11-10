@@ -1,0 +1,18 @@
+{
+  "id": "enemy.splitter",
+  "prompt": "a round segmented robot beetle with six short stubby legs, green glowing seams between armor segments, toy-like sci-fi creature, centered, plain background",
+  "style": "cyberpunk",
+  "rig": "none",
+  "anims": [],
+  "tasks": {
+    "generate": 6331281
+  },
+  "timingsMs": {
+    "generate": 325938
+  },
+  "trisFromLux3D": 8328,
+  "trisInGame": 4030,
+  "clips": [],
+  "rawBytes": 13821380,
+  "finishedAt": "2026-11-10T22:05:18.119Z"
+}

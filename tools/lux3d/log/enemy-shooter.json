@@ -1,0 +1,18 @@
+{
+  "id": "enemy.shooter",
+  "prompt": "a hovering sci-fi gun turret drone, spherical armored body with twin laser cannons on the front, magenta glowing core, no legs, centered, plain background",
+  "style": "cyberpunk",
+  "rig": "none",
+  "anims": [],
+  "tasks": {
+    "generate": 6331348
+  },
+  "timingsMs": {
+    "generate": 310378
+  },
+  "trisFromLux3D": 8848,
+  "trisInGame": 3602,
+  "clips": [],
+  "rawBytes": 13245996,
+  "finishedAt": "2026-11-10T22:05:18.538Z"
+}
