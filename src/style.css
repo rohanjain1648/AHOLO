@@ -1,0 +1,356 @@
+:root {
+  color-scheme: dark;
+  --bg: #05060a;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html,
+body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: var(--bg);
+  font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: none;
+  overscroll-behavior: none;
+}
+
+#app {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background:
+    radial-gradient(circle at 50% 40%, #0b0f1c 0%, #05060a 60%, #000 100%);
+}
+
+#scene,
+#hud {
+  display: block;
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+#scene {
+  image-rendering: auto;
+}
+
+#hud {
+  cursor: crosshair;
+}
+
+/* Simple boot flash so the page is never a blank white frame */
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background: var(--bg);
+  pointer-events: none;
+  opacity: 0;
+}
+
+/* ---- Co-op room-code entry (a real input so phones open their keyboard) ---- */
+.code-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  display: grid;
+  place-items: start center;
+  padding: 16px;
+  background: rgba(3, 4, 8, 0.7);
+  touch-action: auto;
+}
+
+.code-card {
+  width: min(340px, 100%);
+  display: grid;
+  /* minmax(0, ...) lets the big-lettered input shrink to the card instead of overflowing it. */
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
+  padding: 20px 24px;
+  border: 1.5px solid rgba(63, 233, 255, 0.45);
+  border-radius: 16px;
+  background: linear-gradient(rgba(20, 28, 48, 0.95), rgba(8, 10, 20, 0.95));
+  color: #eafcff;
+  text-align: center;
+}
+
+.code-card label {
+  font-weight: 800;
+  font-size: 14px;
+  letter-spacing: 0.08em;
+  color: #3fe9ff;
+}
+
+.code-card input {
+  width: 100%;
+  font: 900 40px "Segoe UI", system-ui, sans-serif;
+  letter-spacing: 0.3em;
+  text-align: center;
+  text-transform: uppercase;
+  padding: 8px 0 8px 0.3em;
+  border: 1.5px solid rgba(230, 244, 255, 0.3);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.05);
+  color: #eafcff;
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+.code-card input:focus {
+  outline: 2px solid #3fe9ff;
+  outline-offset: 2px;
+}
+
+.code-error {
+  min-height: 1.2em;
+  font-size: 13px;
+  font-weight: 700;
+  color: #ff3d6e;
+}
+
+.code-buttons {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.code-buttons button {
+  font: 800 16px "Segoe UI", system-ui, sans-serif;
+  padding: 12px;
+  border-radius: 12px;
+  border: 1.5px solid rgba(230, 244, 255, 0.4);
+  background: rgba(255, 255, 255, 0.06);
+  color: #eafcff;
+  cursor: pointer;
+}
+
+.code-buttons .code-join {
+  border-color: #5b7bff;
+  background: rgba(91, 123, 255, 0.18);
+}
+
+/* ---- Co-op chat ---- */
+.chat-panel {
+  position: fixed;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  color: #eafcff;
+  font-size: 14px;
+}
+
+.chat-panel.mode-hidden {
+  display: none;
+}
+
+.chat-panel.mode-full {
+  top: 70px;
+  right: 12px;
+  bottom: 12px;
+  width: min(300px, 42vw);
+  padding: 10px;
+  border: 1.5px solid rgba(63, 233, 255, 0.35);
+  border-radius: 14px;
+  background: rgba(8, 10, 20, 0.86);
+  touch-action: pan-y;
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+.chat-panel.mode-full.collapsed {
+  bottom: auto;
+  width: auto;
+}
+
+.chat-panel.collapsed .chat-list,
+.chat-panel.collapsed .chat-form,
+.chat-panel.collapsed .chat-vote,
+.chat-panel.collapsed .chat-head > :not(.chat-toggle) {
+  display: none;
+}
+
+/* In a fight: a click-through list of recent lines, above the weapon chips. */
+.chat-panel.mode-feed {
+  left: 16px;
+  bottom: 62px;
+  width: min(340px, 60vw);
+  pointer-events: none;
+}
+
+.chat-panel.mode-feed .chat-head,
+.chat-panel.mode-feed .chat-form,
+.chat-panel.mode-feed .chat-vote {
+  display: none;
+}
+
+.chat-panel.mode-feed .chat-row {
+  animation: chat-fade 9s forwards;
+  text-shadow: 0 1px 3px #000;
+}
+
+@keyframes chat-fade {
+  0%, 75% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+.chat-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+}
+
+.chat-head strong {
+  color: #3fe9ff;
+  letter-spacing: 0.06em;
+}
+
+.chat-watching {
+  color: rgba(230, 244, 255, 0.75);
+}
+
+.chat-crowd {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: rgba(230, 244, 255, 0.75);
+}
+
+.chat-toggle {
+  margin-left: auto;
+}
+
+.chat-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  overflow-wrap: anywhere;
+}
+
+.chat-row.crowd {
+  opacity: 0.8;
+}
+
+.chat-row.quick span {
+  font-style: italic;
+}
+
+.chat-panel button,
+.quick-bar button {
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  border: 1px solid rgba(230, 244, 255, 0.3);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.07);
+  padding: 4px 8px;
+}
+
+.chat-panel .chat-name {
+  border: 0;
+  background: none;
+  padding: 0 6px 0 0;
+  font-weight: 800;
+}
+
+.chat-panel.mode-feed .chat-name {
+  pointer-events: none;
+}
+
+.chat-form {
+  display: flex;
+  gap: 6px;
+}
+
+.chat-form input {
+  flex: 1;
+  min-width: 0;
+  font: inherit;
+  padding: 8px;
+  border: 1px solid rgba(230, 244, 255, 0.3);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.06);
+  color: #eafcff;
+}
+
+.chat-form input:focus,
+.chat-panel button:focus-visible,
+.quick-bar button:focus-visible {
+  outline: 2px solid #3fe9ff;
+  outline-offset: 1px;
+}
+
+.chat-vote:empty {
+  display: none;
+}
+
+.chat-vote {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  padding: 8px;
+  border: 1.5px solid #ffd27a;
+  border-radius: 10px;
+}
+
+.chat-vote-title {
+  grid-column: 1 / -1;
+  color: #ffd27a;
+  font-weight: 800;
+}
+
+.chat-vote button {
+  padding: 10px 4px;
+  font-weight: 800;
+}
+
+.chat-vote button.picked {
+  border-color: #ffd27a;
+  background: rgba(255, 210, 122, 0.2);
+}
+
+.chat-vote button:disabled {
+  cursor: default;
+}
+
+.quick-bar {
+  position: fixed;
+  z-index: 5;
+  left: 50%;
+  bottom: 12px;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 6px;
+  max-width: calc(100vw - 180px);
+  overflow: hidden;
+  color: #eafcff;
+  font-size: 13px;
+  touch-action: manipulation;
+}
+
+.quick-bar[hidden] {
+  display: none;
+}
+
+.quick-bar button {
+  white-space: nowrap;
+  padding: 8px 10px;
+  background: rgba(8, 10, 20, 0.8);
+}

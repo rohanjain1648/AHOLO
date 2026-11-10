@@ -1,0 +1,16 @@
+node_modules/
+dist/
+*.local
+.DS_Store
+.vscode/
+.vercel/
+npm-debug.log*
+*.log
+
+nova-mobile
+dist-coop/
+
+# Lux3D pipeline: raw downloads and task state stay local
+tools/lux3d/raw/
+tools/lux3d/state.json
+.env
