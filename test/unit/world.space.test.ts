@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { PHASES, SPACE_KINDS } from "../../src/game/config";
 import { IDLE_INPUT, type PlayerInput } from "../../src/game/types";
 import { World } from "../../src/game/world";
+import { spaceBlend } from "../../src/game/phaseBlend";
 import { captureSnapshot, decodeSnapshot, encodeSnapshot } from "../../src/net/snapshot";
 import { runFor, silentAudio } from "./helpers";
 
@@ -79,6 +80,21 @@ describe("surface -> launch -> orbit -> descent loop", () => {
     w.player.maxHp = w.player.hp = 1e9; // survive long enough to see it
     runFor(w, PHASES.orbitBossDelay + 1, [IDLE_INPUT]);
     expect(w.enemies.some((e) => !e.dead && e.kind === "capital")).toBe(true);
+  });
+});
+
+describe("spaceBlend", () => {
+  it("is 0 on the surface, 1 in orbit, and eases monotonically through launch and descent", () => {
+    expect(spaceBlend("surface", 99)).toBe(0);
+    expect(spaceBlend("orbit", 0)).toBe(1);
+    expect(spaceBlend("launch", 0)).toBe(0);
+    expect(spaceBlend("launch", PHASES.launchSeconds)).toBe(1);
+    expect(spaceBlend("descent", 0)).toBe(1);
+    expect(spaceBlend("descent", PHASES.descentSeconds)).toBe(0);
+    const a = spaceBlend("launch", PHASES.launchSeconds * 0.3);
+    const b = spaceBlend("launch", PHASES.launchSeconds * 0.6);
+    expect(a).toBeGreaterThan(0);
+    expect(b).toBeGreaterThan(a);
   });
 });
 

@@ -4,6 +4,7 @@ import { Input } from "./core/input";
 import { GameLoop } from "./core/loop";
 import { IDLE_INPUT, type PlayerInput } from "./game/types";
 import { World, type RunStats } from "./game/world";
+import { phaseCallout, spaceBlend } from "./game/phaseBlend";
 import { drawHud, pingButtonRect } from "./ui/hud";
 import {
   drawGameOver,
@@ -183,6 +184,11 @@ function startGame(): void {
   world.localSlot = 0;
   world.recordEffects = false;
   world.reset();
+  // Dev only: ?phase=launch|orbit jumps straight to space for testing and demo capture.
+  if (import.meta.env.DEV) {
+    const jump = new URLSearchParams(location.search).get("phase");
+    if (jump === "launch" || jump === "orbit") world.setPhase(jump);
+  }
   enterRun();
 }
 
@@ -752,6 +758,7 @@ function render(): void {
   followCamera.update(world, rdt);
   scene3d.followSun(world.player.x, world.player.y);
   scene3d.updateAtmosphere(rdt, world.player.x, world.player.y);
+  scene3d.setSpaceBlend(state === "menu" || state === "lobby" ? 0 : spaceBlend(world.phase, world.phaseT));
   scene3d.render();
 
   pushChatBubbles(worldView.floatLabels);
@@ -770,6 +777,7 @@ function render(): void {
 
   drawHud(hudCtx, world, audio.muted, W, H, scene3d.camera);
   drawScreenFlash(t);
+  if (state === "playing") drawPhaseCallout();
 
   const huddleNames = mode === "solo" ? [] : waitingNames();
   if (state === "levelup") {
@@ -790,6 +798,27 @@ function render(): void {
   }
   if ((mode === "client" || mode === "spectator") && clientSession?.hostPaused && relay?.status === "open") drawBanner(hudCtx, W, "Host paused — waiting for the host's game…");
   drawToast();
+}
+
+function drawPhaseCallout(): void {
+  const c = phaseCallout(world.phase, world.phaseT, world.loop);
+  if (!c) return;
+  const ctx = hudCtx;
+  ctx.save();
+  ctx.globalAlpha = c.alpha;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  const size = Math.min(72, W / 9);
+  ctx.font = `900 ${size}px 'Segoe UI', system-ui, sans-serif`;
+  ctx.shadowColor = world.phase === "descent" ? "#ff9a5a" : "#4fb4ff";
+  ctx.shadowBlur = 24;
+  ctx.fillStyle = "#eafcff";
+  ctx.fillText(c.title, W / 2, H * 0.26);
+  ctx.shadowBlur = 0;
+  ctx.font = `600 ${Math.max(14, size * 0.28)}px 'Segoe UI', system-ui, sans-serif`;
+  ctx.fillStyle = "rgba(230,244,255,0.8)";
+  ctx.fillText(c.sub, W / 2, H * 0.26 + size * 0.75);
+  ctx.restore();
 }
 
 function drawToast(): void {

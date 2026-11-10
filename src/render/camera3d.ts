@@ -10,6 +10,7 @@
 import * as THREE from "three";
 import { RNG, damp } from "../core/math";
 import type { World } from "../game/world";
+import { spaceBlend } from "../game/phaseBlend";
 
 const HEIGHT = 560;
 const BACK = 430;
@@ -33,6 +34,11 @@ export class FollowCamera {
 
   update(world: World, dt: number): void {
     const p = world.player;
+    // Orbit sits a little higher (more room to drift); launch/descent swoop up and back.
+    const k = spaceBlend(world.phase, world.phaseT);
+    const lift = 1 + 0.22 * k + 0.7 * Math.sin(Math.PI * k);
+    const height = HEIGHT * lift;
+    const back = BACK * (1 + 0.15 * k);
     this.x = damp(this.x, p.x, 7, dt);
     this.y = damp(this.y, p.y, 7, dt);
 
@@ -46,7 +52,7 @@ export class FollowCamera {
     const jz = shake * 22 * (this.rng.next() * 2 - 1);
 
     // Ground plane (x,y) maps to Three.js world (X,Z); Y is up.
-    this.camera.position.set(this.x + jx, HEIGHT + jy, this.y + BACK + jz);
+    this.camera.position.set(this.x + jx, height + jy, this.y + back + jz);
     this.camera.lookAt(this.x, 24, this.y);
     this.camera.rotation.z += shake * 0.02 * (this.rng.next() * 2 - 1);
   }

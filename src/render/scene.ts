@@ -17,6 +17,13 @@ export class Scene3D {
   readonly sunTarget = new THREE.Object3D();
   private readonly composer: EffectComposer;
   private readonly bloom: UnrealBloomPass;
+  /** Floor, grid, boundary ring and wall: everything that belongs to the surface. */
+  private readonly ground = new THREE.Group();
+  /** Stars, planet and nebula glow for orbit. */
+  private readonly space = new THREE.Group();
+  private readonly planet: THREE.Mesh;
+  private readonly surfaceBg = new THREE.Color(0x05060a);
+  private readonly spaceBg = new THREE.Color(0x020109);
 
   constructor(canvas: HTMLCanvasElement) {
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: "high-performance" });
@@ -30,7 +37,7 @@ export class Scene3D {
     this.scene.background = new THREE.Color(0x05060a);
     this.scene.fog = new THREE.FogExp2(0x05060a, 0.00035);
 
-    this.camera = new THREE.PerspectiveCamera(52, 16 / 9, 1, 6000);
+    this.camera = new THREE.PerspectiveCamera(52, 16 / 9, 1, 14000); // far enough for the orbit planet
 
     // Ambient + a single moving "sun" that casts the only real-time shadow
     // (kept tight around the player so a modest shadow map stays sharp).
@@ -57,6 +64,10 @@ export class Scene3D {
     this.scene.add(this.makeRimLight(0x2de1ff, 900));
 
     this.buildGround();
+    this.scene.add(this.ground);
+    this.planet = this.buildSpace();
+    this.space.visible = false;
+    this.scene.add(this.space);
 
     // Post: selective bloom — threshold tuned so only emissive/bright bits
     // (bullets, gems, robot eyes, the arena boundary) bloom, not the whole scene.
@@ -92,13 +103,13 @@ export class Scene3D {
     const ground = new THREE.Mesh(new THREE.PlaneGeometry(size, size), groundMat);
     ground.rotation.x = -Math.PI / 2;
     ground.receiveShadow = false;
-    this.scene.add(ground);
+    this.ground.add(ground);
 
     const grid = new THREE.GridHelper(WORLD.half * 2, Math.round((WORLD.half * 2) / WORLD.bgGrid), 0x4a9bff, 0x1c3358);
     (grid.material as THREE.Material).transparent = true;
     (grid.material as THREE.Material).opacity = 0.55;
     grid.position.y = 0.5;
-    this.scene.add(grid);
+    this.ground.add(grid);
 
     // Glowing arena boundary ring.
     const ringGeo = new THREE.TorusGeometry(WORLD.half, 6, 8, 128);
@@ -106,7 +117,7 @@ export class Scene3D {
     const ring = new THREE.Mesh(ringGeo, ringMat);
     ring.rotation.x = Math.PI / 2;
     ring.position.y = 4;
-    this.scene.add(ring);
+    this.ground.add(ring);
 
     // Low outer wall so the arena reads as a contained space from the orbit camera.
     const wallGeo = new THREE.CylinderGeometry(WORLD.half + 4, WORLD.half + 4, 90, 64, 1, true);
@@ -119,7 +130,55 @@ export class Scene3D {
     });
     const wall = new THREE.Mesh(wallGeo, wallMat);
     wall.position.y = 45;
-    this.scene.add(wall);
+    this.ground.add(wall);
+  }
+
+  /** Orbit backdrop: a deep starfield below and around the play plane, and a planet far beneath. */
+  private buildSpace(): THREE.Mesh {
+    const n = 2600;
+    const pos = new Float32Array(n * 3);
+    const span = WORLD.half * 3.2;
+    for (let i = 0; i < n; i++) {
+      pos[i * 3] = (Math.random() - 0.5) * span;
+      pos[i * 3 + 1] = -200 - Math.random() * 3000; // below the ships, so they read against stars
+      pos[i * 3 + 2] = (Math.random() - 0.5) * span;
+    }
+    const starGeo = new THREE.BufferGeometry();
+    starGeo.setAttribute("position", new THREE.BufferAttribute(pos, 3));
+    const stars = new THREE.Points(
+      starGeo,
+      new THREE.PointsMaterial({ color: 0xcfe2ff, size: 5, sizeAttenuation: true, toneMapped: false, transparent: true, opacity: 0.9 }),
+    );
+    this.space.add(stars);
+
+    const planet = new THREE.Mesh(
+      new THREE.SphereGeometry(2600, 48, 32),
+      new THREE.MeshStandardMaterial({ color: 0x1d2c6b, emissive: 0x2a1650, emissiveIntensity: 0.55, roughness: 0.9 }),
+    );
+    // Far below and off to one side, so it frames the fight instead of sitting under it.
+    planet.position.set(WORLD.half * 2.2, -7000, -WORLD.half * 1.4);
+    this.space.add(planet);
+    const atmosphere = new THREE.Mesh(
+      new THREE.SphereGeometry(2740, 48, 32),
+      new THREE.MeshBasicMaterial({ color: 0x4fb4ff, transparent: true, opacity: 0.12, side: THREE.BackSide, toneMapped: false }),
+    );
+    planet.add(atmosphere);
+    return planet;
+  }
+
+  /**
+   * 0 = on the surface, 1 = in orbit. In between (launch / descent) the ground
+   * drops away beneath the squad and the stars fade in.
+   */
+  setSpaceBlend(k: number): void {
+    this.ground.visible = k < 0.999;
+    this.ground.position.y = -k * k * 1600;
+    this.space.visible = k > 0.001;
+    const starMat = (this.space.children[0] as THREE.Points).material as THREE.PointsMaterial;
+    starMat.opacity = 0.9 * Math.min(1, k * 1.5);
+    (this.scene.background as THREE.Color).copy(this.surfaceBg).lerp(this.spaceBg, k);
+    (this.scene.fog as THREE.FogExp2).density = 0.00035 * (1 - k) + 0.00006 * k;
+    this.planet.rotation.y += 0.0004;
   }
 
   resize(w: number, h: number): void {

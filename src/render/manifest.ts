@@ -21,6 +21,8 @@ export interface ModelEntry {
   yaw: number;
   /** Height relative to the reference robot (1 = same height). */
   heightMul: number;
+  /** What heightMul measures: standing height (characters) or largest dimension (ships, rocks). */
+  fit: "height" | "size";
   /** Informational, from the pipeline: prompt and triangle count. */
   prompt?: string;
   tris?: number;
@@ -32,6 +34,8 @@ export interface Manifest {
 }
 
 export const PLAYER_ROLE = "player.default";
+/** The squad's fighter in orbit. */
+export const SHIP_ROLE = "player.ship";
 export const roleForEnemy = (kind: EnemyKind): string => `enemy.${kind}`;
 
 const GAME_CLIPS: readonly GameClip[] = ["Idle", "Walking", "Running", "Death"];
@@ -60,6 +64,7 @@ function parseEntry(raw: unknown): ModelEntry | null {
     clips,
     yaw: num(raw.yaw, 0),
     heightMul: num(raw.heightMul, 1) > 0 ? num(raw.heightMul, 1) : 1,
+    fit: raw.fit === "size" ? "size" : "height",
     prompt: typeof raw.prompt === "string" ? raw.prompt : undefined,
     tris: typeof raw.tris === "number" ? raw.tris : undefined,
   };

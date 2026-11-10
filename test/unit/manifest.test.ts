@@ -22,6 +22,20 @@ describe("parseManifest", () => {
     expect(m.models["enemy.shooter"].heightMul).toBe(1);
   });
 
+  it("defaults fit to height and accepts size for flat models like ships", () => {
+    const m = parseManifest({
+      version: 1,
+      models: {
+        a: { file: "gen/a.glb", kind: "rigid" },
+        b: { file: "gen/b.glb", kind: "rigid", fit: "size" },
+        c: { file: "gen/c.glb", kind: "rigid", fit: "sideways" },
+      },
+    });
+    expect(m.models.a.fit).toBe("height");
+    expect(m.models.b.fit).toBe("size");
+    expect(m.models.c.fit).toBe("height");
+  });
+
   it("returns an empty manifest for garbage instead of throwing", () => {
     expect(parseManifest(null).models).toEqual({});
     expect(parseManifest("nope").models).toEqual({});
