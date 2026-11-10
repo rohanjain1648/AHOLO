@@ -21,7 +21,7 @@ import {
 import { toCard, type Upgrade, type UpgradeCard } from "./game/upgrades";
 import { Scene3D } from "./render/scene";
 import { FollowCamera } from "./render/camera3d";
-import { RobotFactory } from "./render/robots";
+import { ModelLibrary } from "./render/modelLibrary";
 import { WorldView, type FloatLabel } from "./render/worldView";
 import { drawFloatLabels } from "./ui/labels3d";
 import {
@@ -68,7 +68,7 @@ const world = new World(audio);
 const followCamera = new FollowCamera(scene3d.camera);
 world.setViewRadius(followCamera.viewRadius);
 
-const robotFactory = new RobotFactory();
+const models = new ModelLibrary();
 let worldView: WorldView | null = null;
 
 let state: State = "loading";
@@ -118,12 +118,13 @@ function resize(): void {
 window.addEventListener("resize", resize);
 resize();
 
-robotFactory
-  .load(`${import.meta.env.BASE_URL}models/RobotExpressive.glb`, (f) => {
+models
+  .load(import.meta.env.BASE_URL, (f) => {
     loadFrac = f;
   })
   .then(() => {
-    worldView = new WorldView(scene3d.scene, robotFactory);
+    if (models.generatedRoles.length) console.info(`[models] Lux3D models: ${models.generatedRoles.join(", ")}`);
+    worldView = new WorldView(scene3d.scene, models);
     worldView.calibrateScale(PLAYER_MODEL_HEIGHT);
     state = "menu";
     // Invite link: ?room=ABCD joins straight away (and the param is stripped

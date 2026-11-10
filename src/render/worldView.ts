@@ -9,7 +9,9 @@ import { clamp } from "../core/math";
 import { COOP, PALETTE } from "../game/config";
 import type { Player } from "../game/player";
 import type { World } from "../game/world";
-import { RobotFactory, type RobotHandle } from "./robots";
+import type { RobotHandle } from "./robots";
+import type { ModelLibrary } from "./modelLibrary";
+import { PLAYER_ROLE, roleForEnemy } from "./manifest";
 import { createFxPools, RingPool, type FxPools } from "./fx";
 
 const hexToNum = (s: string): number => parseInt(s.replace("#", ""), 16);
@@ -38,9 +40,17 @@ interface PlayerVisual {
   reviveArc: THREE.Mesh;
 }
 
+/** One enemy pool slot's model. Slots get reused by other enemy kinds, so the model can swap. */
+interface EnemySlot {
+  role: string;
+  h: RobotHandle;
+}
+
 export class WorldView {
   private readonly playerVisuals: PlayerVisual[] = [];
-  private readonly robots: RobotHandle[] = [];
+  private readonly enemySlots: (EnemySlot | null)[] = [];
+  /** Idle model instances per role, reused when an enemy slot changes kind. */
+  private readonly spare = new Map<string, RobotHandle[]>();
   private readonly pingBeams: THREE.Mesh[] = [];
   private pickupRing!: THREE.Mesh;
   private novaRings!: RingPool;
@@ -52,7 +62,7 @@ export class WorldView {
 
   constructor(
     private readonly scene: THREE.Scene,
-    private readonly factory: RobotFactory,
+    private readonly factory: ModelLibrary,
   ) {
     for (let slot = 0; slot < COOP.maxPlayers; slot++) this.playerVisuals.push(this.createPlayerVisual(slot));
 
@@ -92,7 +102,7 @@ export class WorldView {
 
   private createPlayerVisual(slot: number): PlayerVisual {
     const color = hexToNum(COOP.slotColors[slot]);
-    const robot = this.factory.create();
+    const robot = this.factory.create(PLAYER_ROLE);
     robot.setTint(color);
     robot.root.castShadow = true;
     robot.root.visible = false;
@@ -134,14 +144,25 @@ export class WorldView {
     this.robotBaseScale = natural > 0 ? desiredPlayerHeight / natural : this.robotBaseScale;
   }
 
-  private ensureRobotCapacity(n: number): void {
-    while (this.robots.length < n) {
-      const h = this.factory.create();
+  /** The model for enemy slot i, swapped to the right role's model if the slot changed kind. */
+  private enemyModel(i: number, role: string): RobotHandle {
+    const cur = this.enemySlots[i];
+    if (cur && cur.role === role) return cur.h;
+    if (cur) {
+      cur.h.root.visible = false;
+      let list = this.spare.get(cur.role);
+      if (!list) this.spare.set(cur.role, (list = []));
+      list.push(cur.h);
+    }
+    let h = this.spare.get(role)?.pop();
+    if (!h) {
+      h = this.factory.create(role);
       h.root.visible = false;
       h.root.castShadow = true;
       this.scene.add(h.root);
-      this.robots.push(h);
     }
+    this.enemySlots[i] = { role, h };
+    return h;
   }
 
   sync(world: World, dt: number): void {
@@ -172,14 +193,14 @@ export class WorldView {
     }
 
     // --- Enemies --------------------------------------------------------
-    this.ensureRobotCapacity(world.enemies.length);
     for (let i = 0; i < world.enemies.length; i++) {
       const e = world.enemies[i];
-      const h = this.robots[i];
       if (e.dead) {
-        h.root.visible = false;
+        const slot = this.enemySlots[i];
+        if (slot) slot.h.root.visible = false;
         continue;
       }
+      const h = this.enemyModel(i, roleForEnemy(e.kind));
       h.root.visible = true;
       h.root.position.set(e.x, 0, e.y);
       const target = nearestActive(world.players, e.x, e.y) ?? p;
@@ -192,7 +213,8 @@ export class WorldView {
 
       h.play(spawnIn ? "Idle" : e.anim, 0.2);
       h.setSpeed(spawnIn ? 1 : e.animSpeed);
-      h.setTint(e.flash > 0 ? 0xffffff : hexToNum(e.color));
+      h.setTint(hexToNum(e.color));
+      h.setFlash(e.flash > 0);
       h.update(dt);
     }
 

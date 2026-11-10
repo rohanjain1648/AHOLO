@@ -22,7 +22,10 @@ export interface RobotHandle {
   mixer: THREE.AnimationMixer;
   /** Crossfade to a clip; safe to call every frame with the same name (no-op if already playing). */
   play(name: ClipName, fade?: number): void;
+  /** Team/tier color. The bundled robot recolors its body; generated models take it as a faint glow. */
   setTint(hex: number): void;
+  /** Hit flash: white while on. */
+  setFlash(on: boolean): void;
   setSpeed(mul: number): void;
   update(dt: number): void;
   dispose(): void;
@@ -95,6 +98,11 @@ export class RobotFactory {
 
     let current: THREE.AnimationAction | null = null;
     let currentName: string | null = null;
+    let tint = 0xffffff;
+    let flashing = false;
+    const applyColor = () => {
+      if (tintMaterial) (tintMaterial as THREE.MeshStandardMaterial).color.setHex(flashing ? 0xffffff : tint);
+    };
 
     const handle: RobotHandle = {
       root,
@@ -109,7 +117,12 @@ export class RobotFactory {
         currentName = name;
       },
       setTint(hex) {
-        if (tintMaterial) (tintMaterial as THREE.MeshStandardMaterial).color.setHex(hex);
+        tint = hex;
+        applyColor();
+      },
+      setFlash(on) {
+        flashing = on;
+        applyColor();
       },
       setSpeed(mul) {
         if (current) current.timeScale = mul;
