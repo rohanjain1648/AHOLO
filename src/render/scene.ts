@@ -7,6 +7,7 @@ import { EffectComposer } from "three/examples/jsm/postprocessing/EffectComposer
 import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass.js";
 import { UnrealBloomPass } from "three/examples/jsm/postprocessing/UnrealBloomPass.js";
 import { OutputPass } from "three/examples/jsm/postprocessing/OutputPass.js";
+import { edgeProximity } from "../game/arena";
 import { WORLD } from "../game/config";
 
 export class Scene3D {
@@ -17,11 +18,20 @@ export class Scene3D {
   readonly sunTarget = new THREE.Object3D();
   private readonly composer: EffectComposer;
   private readonly bloom: UnrealBloomPass;
-  /** Floor, grid, boundary ring and wall: everything that belongs to the surface. */
+  /** Floor and grid: everything that belongs to the surface. */
   private readonly ground = new THREE.Group();
   /** Stars, planet and nebula glow for orbit. */
   private readonly space = new THREE.Group();
   private readonly planet: THREE.Mesh;
+  /** Combat-zone frame and light walls; visible on the surface and in orbit. */
+  private readonly zone = new THREE.Group();
+  private readonly zoneSafe = new THREE.Color(0x4fd8ff);
+  private readonly zoneDanger = new THREE.Color(0xff3d4e);
+  private readonly zoneTint = new THREE.Color();
+  private zoneFrameMat!: THREE.MeshBasicMaterial;
+  private zoneWallMat!: THREE.MeshBasicMaterial;
+  private zoneGlowMat!: THREE.MeshBasicMaterial;
+  private zoneGrid!: THREE.GridHelper;
   private readonly surfaceBg = new THREE.Color(0x05060a);
   private readonly spaceBg = new THREE.Color(0x020109);
 
@@ -64,6 +74,7 @@ export class Scene3D {
     this.scene.add(this.makeRimLight(0x2de1ff, 900));
 
     this.buildGround();
+    this.buildZone();
     this.scene.add(this.ground);
     this.planet = this.buildSpace();
     this.space.visible = false;
@@ -111,26 +122,127 @@ export class Scene3D {
     grid.position.y = 0.5;
     this.ground.add(grid);
 
-    // Glowing arena boundary ring.
-    const ringGeo = new THREE.TorusGeometry(WORLD.half, 6, 8, 128);
-    const ringMat = new THREE.MeshBasicMaterial({ color: 0x5a8cff });
-    const ring = new THREE.Mesh(ringGeo, ringMat);
-    ring.rotation.x = Math.PI / 2;
-    ring.position.y = 4;
-    this.ground.add(ring);
+  }
 
-    // Low outer wall so the arena reads as a contained space from the orbit camera.
-    const wallGeo = new THREE.CylinderGeometry(WORLD.half + 4, WORLD.half + 4, 90, 64, 1, true);
-    const wallMat = new THREE.MeshStandardMaterial({
-      color: 0x0a1024,
-      emissive: 0x14274a,
-      emissiveIntensity: 0.4,
-      side: THREE.BackSide,
-      roughness: 1,
+  /**
+   * The combat zone: a square frame, fading light walls and corner pylons that
+   * match the real movement limit exactly (the clamp in World is a square of
+   * WORLD.half). Unlike the ground it stays visible in orbit, so the edge of the
+   * arena is always on screen. A coarse sector grid shows up only in orbit.
+   */
+  private buildZone(): void {
+    const H = WORLD.half;
+    const bar = 56; // a wide flat band: visible even from the near-top-down orbit camera
+    const frameMat = new THREE.MeshBasicMaterial({ color: this.zoneSafe, toneMapped: false, fog: false });
+    const frameGeo = new THREE.BoxGeometry(H * 2 + bar, 6, bar);
+    for (const [x, z, rot] of [[0, -H, 0], [0, H, 0], [-H, 0, Math.PI / 2], [H, 0, Math.PI / 2]] as const) {
+      const m = new THREE.Mesh(frameGeo, frameMat);
+      m.position.set(x, 4, z);
+      m.rotation.y = rot;
+      this.zone.add(m);
+    }
+
+    // Light walls: bright at the floor, fading to nothing 140 units up (additive, so black = invisible).
+    const wallH = 140;
+    const wallGeo = new THREE.PlaneGeometry(H * 2, wallH);
+    const colors = new Float32Array([0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1]); // top verts, then bottom verts
+    wallGeo.setAttribute("color", new THREE.BufferAttribute(colors, 3));
+    const wallMat = new THREE.MeshBasicMaterial({
+      color: this.zoneSafe,
+      vertexColors: true,
+      transparent: true,
+      opacity: 0.32,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+      side: THREE.DoubleSide,
+      toneMapped: false,
+      fog: false,
     });
-    const wall = new THREE.Mesh(wallGeo, wallMat);
-    wall.position.y = 45;
-    this.ground.add(wall);
+    for (const [x, z, rot] of [[0, -H, 0], [0, H, 0], [-H, 0, Math.PI / 2], [H, 0, Math.PI / 2]] as const) {
+      const m = new THREE.Mesh(wallGeo, wallMat);
+      m.position.set(x, wallH / 2, z);
+      m.rotation.y = rot;
+      this.zone.add(m);
+    }
+
+    // Inner glow: each edge lights up the floor 320 units inward, so approaching a wall is visible well before the warning.
+    const glowW = 320;
+    const glowGeo = new THREE.PlaneGeometry(H * 2, glowW);
+    glowGeo.setAttribute("color", new THREE.BufferAttribute(new Float32Array([1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0]), 3));
+    const glowMat = new THREE.MeshBasicMaterial({
+      color: this.zoneSafe, vertexColors: true, transparent: true, opacity: 0.3, blending: THREE.AdditiveBlending,
+      depthWrite: false, side: THREE.DoubleSide, toneMapped: false, fog: false,
+    });
+    for (const [x, z, rot] of [[0, -H + glowW / 2, 0], [0, H - glowW / 2, Math.PI], [-H + glowW / 2, 0, Math.PI / 2], [H - glowW / 2, 0, -Math.PI / 2]] as const) {
+      const m = new THREE.Mesh(glowGeo, glowMat);
+      m.rotation.x = -Math.PI / 2; // lie flat; its bright edge now points toward -z
+      // the holder yaws the strip so that bright edge faces the wall
+      const holder = new THREE.Group();
+      holder.position.set(x, 3, z);
+      holder.rotation.y = rot;
+      holder.add(m);
+      this.zone.add(holder);
+    }
+    this.zoneGlowMat = glowMat;
+
+    // Outside the zone is dead space: a dark red veil with a square hole, so "in" and "out" read at a glance.
+    const outer = H * 4;
+    const shape = new THREE.Shape();
+    shape.moveTo(-outer, -outer); shape.lineTo(outer, -outer); shape.lineTo(outer, outer); shape.lineTo(-outer, outer); shape.closePath();
+    const hole = new THREE.Path();
+    hole.moveTo(-H, -H); hole.lineTo(-H, H); hole.lineTo(H, H); hole.lineTo(H, -H); hole.closePath();
+    shape.holes.push(hole);
+    const veil = new THREE.Mesh(
+      new THREE.ShapeGeometry(shape),
+      new THREE.MeshBasicMaterial({ color: 0x1a0509, transparent: true, opacity: 0.78, depthWrite: false, toneMapped: false, fog: false }),
+    );
+    veil.rotation.x = -Math.PI / 2;
+    veil.position.y = 1.5;
+    this.zone.add(veil);
+
+    // Corner pylons so the four corners read from anywhere in the arena.
+    const pylonGeo = new THREE.BoxGeometry(26, 260, 26);
+    for (const sx of [-1, 1]) {
+      for (const sz of [-1, 1]) {
+        const p = new THREE.Mesh(pylonGeo, frameMat);
+        p.position.set(sx * H, 130, sz * H);
+        this.zone.add(p);
+      }
+    }
+
+    // Orbit-only sector grid (400 units a cell) with an origin cross, for a sense of speed and place.
+    const cells = Math.round((H * 2) / 400);
+    const grid = new THREE.GridHelper(H * 2, cells, 0x7fd8ff, 0x2a6a9a);
+    const gm = grid.material as THREE.LineBasicMaterial;
+    gm.transparent = true;
+    gm.opacity = 0;
+    gm.fog = false;
+    gm.depthWrite = false;
+    grid.position.y = -2;
+    this.zoneGrid = grid;
+    this.zone.add(grid);
+
+    this.zoneFrameMat = frameMat;
+    this.zoneWallMat = wallMat;
+    this.scene.add(this.zone);
+  }
+
+  /**
+   * Tint the zone by how close the player is to the edge (cyan = safe, red = at the wall),
+   * pulse it when close, and fade the sector grid in with the orbit blend `k`.
+   * Returns 0..1 edge proximity so the HUD can match.
+   */
+  updateZone(px: number, py: number, k: number, time: number): number {
+    const prox = edgeProximity(px, py);
+    this.zoneTint.copy(this.zoneSafe).lerp(this.zoneDanger, prox);
+    const pulse = prox > 0 ? 0.65 + 0.35 * Math.sin(time * 12) : 1;
+    this.zoneFrameMat.color.copy(this.zoneTint).multiplyScalar(pulse);
+    this.zoneWallMat.color.copy(this.zoneTint);
+    this.zoneWallMat.opacity = 0.18 + 0.3 * prox * pulse;
+    this.zoneGlowMat.color.copy(this.zoneTint);
+    this.zoneGlowMat.opacity = 0.3 + 0.35 * prox * pulse;
+    (this.zoneGrid.material as THREE.LineBasicMaterial).opacity = 0.6 * k * k;
+    return prox;
   }
 
   /** Orbit backdrop: a deep starfield below and around the play plane, and a planet far beneath. */

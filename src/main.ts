@@ -951,7 +951,9 @@ function render(): void {
   followCamera.update(world, rdt, stepBossIntro());
   scene3d.followSun(world.player.x, world.player.y);
   scene3d.updateAtmosphere(rdt, world.player.x, world.player.y);
-  scene3d.setSpaceBlend(state === "menu" || state === "lobby" ? 0 : spaceBlend(world.phase, world.phaseT));
+  const blend = state === "menu" || state === "lobby" ? 0 : spaceBlend(world.phase, world.phaseT);
+  scene3d.setSpaceBlend(blend);
+  scene3d.updateZone(world.player.x, world.player.y, blend, t);
   scene3d.render();
 
   pushChatBubbles(worldView.floatLabels);

@@ -4,6 +4,7 @@ import type { Audio } from "../core/audio";
 import { BOSS_INTRO_SECONDS, COOP, DIRECTOR, isBossKind, PALETTE, PHASES, PLAYER, SPACE, WORLD, xpForLevel } from "./config";
 import type { EnemyKind, Phase } from "./config";
 import { ARCHETYPES, isArchetypeId, type ArchetypeId } from "./archetypes";
+import { bounceOffWall } from "./arena";
 import { applyEffect, type Effect, type HapticKind } from "./effects";
 import { chooseKind, Director, initEnemy, ringPoint, shooterConfig } from "./enemies";
 import { Particles } from "./particles";
@@ -490,7 +491,16 @@ export class World {
   private integratePlayer(p: Player, dt: number): void {
     const nx = p.x + p.vx * dt;
     const ny = p.y + p.vy * dt;
-    // Hitting the arena edge kills that axis of velocity (matters for drifting ships).
+    if (this.phase === "orbit" && p.dashT <= 0) {
+      // A drifting ship bounces off the light wall instead of sticking to it.
+      const b = bounceOffWall(nx, ny, p.vx, p.vy);
+      p.x = b.x;
+      p.y = b.y;
+      p.vx = b.vx;
+      p.vy = b.vy;
+      return;
+    }
+    // Hitting the arena edge kills that axis of velocity.
     if (Math.abs(nx) > WORLD.half) p.vx = 0;
     if (Math.abs(ny) > WORLD.half) p.vy = 0;
     p.x = clamp(nx, -WORLD.half, WORLD.half);

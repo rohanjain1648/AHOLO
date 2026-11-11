@@ -1,6 +1,8 @@
 import * as THREE from "three";
 import { clamp } from "../core/math";
-import { COOP, PALETTE, PLAYER } from "../game/config";
+import { edgeProximity } from "../game/arena";
+import { COOP, PALETTE, PLAYER, WORLD } from "../game/config";
+import type { EnemyKind } from "../game/config";
 import type { World } from "../game/world";
 import type { Rect } from "./screens";
 
@@ -140,11 +142,144 @@ export function drawHud(
   ctx.fillText(muted ? "🔇 M" : "🔊 M", w - pad, 14);
   ctx.fillText(world.spectating ? "ESC menu" : world.players.length > 1 ? "ESC menu · G ping" : "ESC pause", w - pad, 34);
 
+  drawEdgeWarning(ctx, world, w, h);
+  if (world.phase === "orbit") drawRadar(ctx, world, w, h);
+
   if (world.players.length > 1) {
     drawTeammates(ctx, world, pad, 60);
     if (camera) drawEdgeArrows(ctx, world, camera, w, h);
     if (!world.spectating) drawPingButton(ctx, world, w, h);
   }
+}
+
+/** Radar size and position: bottom-right, clear of the co-op ping button. */
+export function radarRect(w: number, h: number, coop: boolean): Rect {
+  const s = Math.round(clamp(Math.min(w, h) * 0.26, 96, 168));
+  const lift = coop ? 64 + 12 : 0;
+  return { x: w - 16 - s, y: h - 16 - s - lift, w: s, h: s };
+}
+
+/** Sector name for a world position: columns A-D left to right, rows 1-4 top to bottom. */
+export function sectorName(x: number, y: number): string {
+  const half = WORLD.half;
+  const col = clamp(Math.floor(((x + half) / (half * 2)) * 4), 0, 3);
+  const row = clamp(Math.floor(((y + half) / (half * 2)) * 4), 0, 3);
+  return `${"ABCD"[col]}${row + 1}`;
+}
+
+/**
+ * Red vignette and a message when the ship nears the wall of the combat zone, so the
+ * limit never comes as a surprise. Works on the surface too.
+ */
+function drawEdgeWarning(ctx: CanvasRenderingContext2D, world: World, w: number, h: number): void {
+  if (world.phase === "launch" || world.phase === "descent") return;
+  const prox = edgeProximity(world.player.x, world.player.y);
+  if (prox < 0.25) return;
+  const k = (prox - 0.25) / 0.75;
+  const pulse = 0.75 + 0.25 * Math.sin(performance.now() / 90);
+  const g = ctx.createRadialGradient(w / 2, h / 2, Math.min(w, h) * 0.35, w / 2, h / 2, Math.max(w, h) * 0.75);
+  g.addColorStop(0, "rgba(255,40,70,0)");
+  g.addColorStop(1, `rgba(255,40,70,${(0.45 * k * pulse).toFixed(3)})`);
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, w, h);
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.font = "900 15px 'Segoe UI', system-ui, sans-serif";
+  ctx.fillStyle = `rgba(255,120,130,${(0.5 + 0.5 * k).toFixed(2)})`;
+  ctx.fillText(world.phase === "orbit" ? "◄ COMBAT ZONE EDGE · TURN BACK ►" : "ARENA EDGE", w / 2, Math.round(h * 0.2));
+}
+
+const RADAR_DOT: Partial<Record<EnemyKind, string>> = {
+  asteroid: "rgba(160,170,190,0.7)",
+  kamikaze: "#ff9a3d",
+  bomber: "#ff7ab0",
+};
+
+/**
+ * Orbit radar: the whole combat zone as a square map (it IS a square, matching the real
+ * limit), with sector grid, enemies, the capital ship, teammates and your own ship. This is
+ * how you pick which part of the arena to fight in and fly there without guessing.
+ */
+function drawRadar(ctx: CanvasRenderingContext2D, world: World, w: number, h: number): void {
+  const r = radarRect(w, h, world.players.length > 1);
+  const half = WORLD.half;
+  const sx = (x: number): number => r.x + ((x + half) / (half * 2)) * r.w;
+  const sy = (y: number): number => r.y + ((y + half) / (half * 2)) * r.h;
+  const p = world.player;
+  const prox = edgeProximity(p.x, p.y);
+
+  ctx.save();
+  ctx.fillStyle = "rgba(4,10,24,0.72)";
+  ctx.fillRect(r.x, r.y, r.w, r.h);
+  // Sector grid (4 x 4).
+  ctx.strokeStyle = "rgba(120,200,255,0.18)";
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  for (let i = 1; i < 4; i++) {
+    ctx.moveTo(r.x + (r.w * i) / 4, r.y);
+    ctx.lineTo(r.x + (r.w * i) / 4, r.y + r.h);
+    ctx.moveTo(r.x, r.y + (r.h * i) / 4);
+    ctx.lineTo(r.x + r.w, r.y + (r.h * i) / 4);
+  }
+  ctx.stroke();
+  // Sector letters along the top, numbers down the left.
+  ctx.font = "700 9px 'Segoe UI', system-ui, sans-serif";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "top";
+  ctx.fillStyle = "rgba(160,215,255,0.5)";
+  for (let i = 0; i < 4; i++) {
+    ctx.fillText("ABCD"[i], r.x + (r.w * (i + 0.5)) / 4, r.y + 2);
+    ctx.textAlign = "left";
+    ctx.fillText(`${i + 1}`, r.x + 3, r.y + (r.h * (i + 0.5)) / 4 - 4);
+    ctx.textAlign = "center";
+  }
+  // Border: cyan, flashing red at the edge.
+  ctx.lineWidth = 2;
+  ctx.strokeStyle = prox > 0.25 ? `rgba(255,${Math.round(90 - 50 * prox)},80,0.95)` : "rgba(90,215,255,0.9)";
+  ctx.strokeRect(r.x, r.y, r.w, r.h);
+
+  // Enemies.
+  for (const e of world.enemies) {
+    if (e.dead) continue;
+    const big = e.isBoss || e.kind === "capital";
+    ctx.fillStyle = big ? "#ffcf5a" : RADAR_DOT[e.kind] ?? "#ff5a5a";
+    const d = big ? 7 : e.kind === "asteroid" ? 3 : 3.5;
+    if (big) {
+      ctx.fillRect(sx(e.x) - d / 2, sy(e.y) - d / 2, d, d);
+      ctx.strokeStyle = "rgba(255,207,90,0.8)";
+      ctx.lineWidth = 1;
+      ctx.strokeRect(sx(e.x) - d, sy(e.y) - d, d * 2, d * 2);
+    } else {
+      ctx.fillRect(sx(e.x) - d / 2, sy(e.y) - d / 2, d, d);
+    }
+  }
+  // Teammates.
+  for (const o of world.players) {
+    if (!o.active || o.slot === world.localSlot) continue;
+    ctx.fillStyle = COOP.slotColors[o.slot] ?? PALETTE.player;
+    ctx.beginPath();
+    ctx.arc(sx(o.x), sy(o.y), 3.5, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  // You: a ship-shaped arrow pointing along your facing.
+  ctx.translate(sx(p.x), sy(p.y));
+  ctx.rotate(p.facing);
+  ctx.fillStyle = PALETTE.player;
+  ctx.beginPath();
+  ctx.moveTo(7, 0);
+  ctx.lineTo(-5, -4.5);
+  ctx.lineTo(-2.5, 0);
+  ctx.lineTo(-5, 4.5);
+  ctx.closePath();
+  ctx.fill();
+  ctx.restore();
+
+  // Caption: sector of the ship.
+  ctx.font = "800 11px 'Segoe UI', system-ui, sans-serif";
+  ctx.textAlign = "right";
+  ctx.textBaseline = "bottom";
+  ctx.fillStyle = "rgba(190,230,255,0.85)";
+  ctx.fillText(`COMBAT ZONE · SECTOR ${sectorName(p.x, p.y)}`, r.x + r.w, r.y - 4);
 }
 
 /** Teammate rows under your HP bar: name in slot colour, mini HP bar, DOWN tag. */

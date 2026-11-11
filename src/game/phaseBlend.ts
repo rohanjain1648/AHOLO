@@ -14,8 +14,8 @@ export function phaseCallout(phase: Phase, phaseT: number, loop: number): { titl
     case "descent":
       return { title: "RE-ENTRY", sub: "Back to the surface", alpha: 1 };
     case "orbit": {
-      const a = fade(phaseT, 2.2);
-      return a > 0 ? { title: "ORBIT", sub: "Survive the fleet. Destroy the capital ship.", alpha: a } : null;
+      const a = fade(phaseT, 3.4);
+      return a > 0 ? { title: "ORBIT", sub: "Stay inside the glowing zone. Check the radar. Destroy the capital ship.", alpha: a } : null;
     }
     case "surface": {
       if (loop === 0) return null;
