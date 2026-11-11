@@ -82,6 +82,39 @@ describe("ForgeClient", () => {
     expect(limited.state).toMatchObject({ kind: "failed", reason: "rate_limited" });
   });
 
+  it("fires onFailed once, for refused requests and for jobs that fail later", async () => {
+    let now = 0;
+    const failed: string[] = [];
+    const refused = new ForgeClient(
+      "http://relay",
+      fakeFetch({ "GET /forge": [{ body: { on: true } }], "POST /forge": [{ status: 429, body: { error: "daily_cap" } }] }).fn,
+    );
+    refused.onFailed = (prompt, reason) => failed.push(`${prompt}:${reason}`);
+    await refused.checkAvailable();
+    await refused.start("a");
+    refused.tick();
+    refused.tick();
+
+    const later = new ForgeClient(
+      "http://relay",
+      fakeFetch({
+        "GET /forge": [{ body: { on: true } }],
+        "POST /forge": [{ body: { id: "j" } }],
+        "GET /forge/j": [{ body: { state: "failed", prompt: "b" } }],
+      }).fn,
+      () => now,
+    );
+    later.onFailed = (prompt, reason) => failed.push(`${prompt}:${reason}`);
+    await later.checkAvailable();
+    await later.start("b");
+    now += 4000;
+    later.tick();
+    await flush();
+    later.tick();
+    later.tick();
+    expect(failed).toEqual(["a:daily_cap", "b:generation_failed"]);
+  });
+
   it("ignores a second start while a forge is running", async () => {
     const f = fakeFetch({ "GET /forge": [{ body: { on: true } }], "POST /forge": [{ body: { id: "a" } }] });
     const c = new ForgeClient("http://relay", f.fn);

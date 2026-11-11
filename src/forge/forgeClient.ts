@@ -18,6 +18,8 @@ export class ForgeClient {
   state: ForgeState = { kind: "off" };
   /** Fired once when a forged model is ready to load. */
   onReady: ((url: string, prompt: string) => void) | null = null;
+  /** Fired once when a forge is refused or fails (the game falls back to the gallery). */
+  onFailed: ((prompt: string, reason: string) => void) | null = null;
   private id: string | null = null;
   private lastPoll = 0;
   private polling = false;
@@ -68,9 +70,10 @@ export class ForgeClient {
 
   tick(): void {
     const s = this.state;
-    if (s.kind === "ready" && !this.announced) {
+    if ((s.kind === "ready" || s.kind === "failed") && !this.announced) {
       this.announced = true;
-      this.onReady?.(s.url, s.prompt);
+      if (s.kind === "ready") this.onReady?.(s.url, s.prompt);
+      else this.onFailed?.(s.prompt, s.reason);
       return;
     }
     if (s.kind !== "pending" || this.polling || !this.id) return;

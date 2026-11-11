@@ -37,6 +37,15 @@ describe("parseManifest", () => {
     expect(m.models.c.fit).toBe("height");
   });
 
+  it("keeps the lazy flag (loaded on demand, not at boot)", () => {
+    const m = parseManifest({
+      version: 1,
+      models: { g: { file: "gen/g.glb", kind: "rigid", lazy: true }, n: { file: "gen/n.glb", kind: "rigid" } },
+    });
+    expect(m.models.g.lazy).toBe(true);
+    expect(m.models.n.lazy).toBe(false);
+  });
+
   it("returns an empty manifest for garbage instead of throwing", () => {
     expect(parseManifest(null).models).toEqual({});
     expect(parseManifest("nope").models).toEqual({});

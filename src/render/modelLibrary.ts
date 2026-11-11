@@ -34,6 +34,23 @@ export class ModelLibrary {
   private readonly models = new Map<string, LoadedModel>();
   /** Roles that load and run on generated models, for the debug probe and the hangar. */
   readonly generatedRoles: string[] = [];
+  private readonly lazy = new Map<string, ModelEntry>();
+  private baseUrl = "/";
+
+  /** Pre-forged gallery bosses (lazy manifest roles under forge.gallery.*) with their prompts. */
+  gallery(): { role: string; prompt: string }[] {
+    return [...this.lazy]
+      .filter(([role]) => role.startsWith("forge.gallery."))
+      .map(([role, e]) => ({ role, prompt: e.prompt ?? role }));
+  }
+
+  /** Fetch a lazy model now (no-op if already loaded). */
+  async loadLazy(role: string): Promise<void> {
+    if (this.models.has(role)) return;
+    const entry = this.lazy.get(role);
+    if (!entry) throw new Error(`no lazy model ${role}`);
+    await this.loadRuntime(role, `${this.baseUrl}models/${entry.file}`, entry);
+  }
 
   async load(baseUrl: string, onProgress?: (frac: number) => void): Promise<void> {
     let robotFrac = 0;
@@ -52,6 +69,10 @@ export class ModelLibrary {
     } catch {
       /* no manifest: everything uses the bundled robot */
     }
+    // Lazy models (the Forge gallery) are only listed now and fetched when needed.
+    this.baseUrl = baseUrl;
+    for (const [role, entry] of entries) if (entry.lazy) this.lazy.set(role, entry);
+    entries = entries.filter(([, entry]) => !entry.lazy);
 
     const loader = new GLTFLoader();
     loader.setMeshoptDecoder(MeshoptDecoder);
@@ -77,7 +98,7 @@ export class ModelLibrary {
       if (this.models.has(role)) continue;
       const scene = build();
       this.models.set(role, {
-        entry: { file: "builtin.glb", kind: "rigid", yaw: 0, pitch: 0, heightMul: PROCEDURAL_SIZE[role] ?? 1, fit: "size" },
+        entry: { file: "builtin.glb", kind: "rigid", yaw: 0, pitch: 0, heightMul: PROCEDURAL_SIZE[role] ?? 1, fit: "size", lazy: false },
         gltf: { scene, animations: [] } as unknown as GLTF,
         norm: 1,
         offset: new THREE.Vector3(),
@@ -98,7 +119,7 @@ export class ModelLibrary {
     loader.setMeshoptDecoder(MeshoptDecoder);
     const gltf = await loader.loadAsync(url);
     const m: LoadedModel = {
-      entry: { file: "runtime.glb", kind: "rigid", yaw: 0, pitch: 0, heightMul: 1, fit: "size", ...entry },
+      entry: { file: "runtime.glb", kind: "rigid", yaw: 0, pitch: 0, heightMul: 1, fit: "size", ...entry, lazy: false },
       gltf,
       norm: 1,
       offset: new THREE.Vector3(),

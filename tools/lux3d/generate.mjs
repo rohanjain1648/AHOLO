@@ -190,7 +190,8 @@ async function processAsset(api, spec) {
         pitch: spec.pitch ?? 0,
         heightMul: spec.heightMul ?? 1,
         fit: spec.fit ?? "height",
-        prompt: spec.prompt,
+        ...(spec.lazy ? { lazy: true } : {}),
+        prompt: spec.idea ?? spec.prompt,
         tris: r.trisAfter,
       };
       writeJson(MANIFEST, manifest);

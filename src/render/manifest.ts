@@ -25,6 +25,8 @@ export interface ModelEntry {
   heightMul: number;
   /** What heightMul measures: standing height (characters) or largest dimension (ships, rocks). */
   fit: "height" | "size";
+  /** Loaded on demand (Forge gallery), not at boot. */
+  lazy: boolean;
   /** Informational, from the pipeline: prompt and triangle count. */
   prompt?: string;
   tris?: number;
@@ -68,6 +70,7 @@ function parseEntry(raw: unknown): ModelEntry | null {
     pitch: num(raw.pitch, 0),
     heightMul: num(raw.heightMul, 1) > 0 ? num(raw.heightMul, 1) : 1,
     fit: raw.fit === "size" ? "size" : "height",
+    lazy: raw.lazy === true,
     prompt: typeof raw.prompt === "string" ? raw.prompt : undefined,
     tris: typeof raw.tris === "number" ? raw.tris : undefined,
   };

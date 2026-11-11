@@ -159,6 +159,35 @@ export const CAST = [
     tris: 14000,
     tex: 1024,
   },
+
+  // --- Forge gallery: pre-forged bosses for when live Forge can't run --------
+  // (relay offline, rate limit, daily cap, or credits gone during judging).
+  // Same settings as live Forge (server/src/forge.ts): G1-Turbo, boss framing.
+  ...[
+    "a giant mechanical scorpion made of rusty scrap with a glowing green stinger",
+    "a crystal golem made of glowing purple amethyst with molten lava cracks",
+    "a colossal cyber dragon with neon blue circuit scales",
+    "a towering junkyard robot king wearing a crown of exhaust pipes",
+    "a bioluminescent alien jellyfish warship with trailing tentacles",
+    "an ancient stone temple guardian statue with one glowing red eye",
+  ].map((idea, i) => ({
+    id: `forge.gallery.${i + 1}`,
+    phase: "forge",
+    idea,
+    prompt: forgePrompt(idea),
+    style: "cyberpunk",
+    version: "G1-Turbo",
+    rig: "none",
+    fit: "size",
+    lazy: true,
+    tris: 9000,
+    tex: 1024,
+  })),
 ];
+
+/** Must match bossPrompt() in server/src/forge.ts so gallery bosses look like live ones. */
+function forgePrompt(idea) {
+  return `${idea}, a giant menacing boss creature for a sci-fi video game, full body, strong silhouette, centered, plain background`;
+}
 
 export const findSpec = (id) => CAST.find((s) => s.id === id);

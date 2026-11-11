@@ -37,6 +37,7 @@ import {
 } from "./ui/lobby";
 import { askForgePrompt, askRoomCode } from "./ui/codeInput";
 import { ForgeClient, forgeStatusLine } from "./forge/forgeClient";
+import { pickGalleryBoss } from "./forge/gallery";
 import { RelayClient, relayHttpUrl, relayUrl, wakeRelay } from "./net/relayClient";
 import { ChatController, type ChatRole } from "./chat/chatController";
 import { NexconnTransport } from "./chat/nexconnTransport";
@@ -102,20 +103,53 @@ let followSlot = 0;
 // Forge: a typed boss idea becomes a Lux3D model via the relay (which holds the key).
 const forge = new ForgeClient(RELAY_URL ? relayHttpUrl(RELAY_URL) : null);
 let forgeCount = 0;
+/** Title line while a pre-forged gallery boss stands in for live Forge. */
+let forgeNote: string | null = null;
+
+function wearForge(role: string, name: string): void {
+  if (worldView) worldView.forgeRole = role;
+  world.forgeName = name;
+}
+
 forge.onReady = (url, prompt) => {
   const role = `forge.boss.${++forgeCount}`;
   models
     .loadRuntime(role, url)
     .then(() => {
-      if (worldView) worldView.forgeRole = role;
-      world.forgeName = prompt;
+      forgeNote = null;
+      wearForge(role, prompt);
       showToast(`⚒ “${prompt}” is forged. It comes with the next boss.`);
     })
     .catch((err) => {
       console.error("[forge] model failed to load", err);
-      showToast("⚒ The forged model didn't load. Try another idea");
+      useGallery(prompt, "load_failed");
     });
 };
+forge.onFailed = (prompt, reason) => useGallery(prompt, reason);
+
+/**
+ * Live Forge can't run (offline, rate limit, daily cap, failure): summon the
+ * closest pre-forged Lux3D boss instead, and say so.
+ */
+function useGallery(idea: string, reason: string): void {
+  const pick = pickGalleryBoss(idea, models.gallery());
+  if (!pick) return;
+  forgeNote = "⚒ Summoning a pre-forged boss…";
+  models
+    .loadLazy(pick.role)
+    .then(() => {
+      wearForge(pick.role, pick.prompt);
+      const why = reason === "off" ? "Live Forge is offline" : "Live Forge is busy";
+      forgeNote = `⚒ ${why}. Pre-forged boss: “${pick.prompt}”`;
+      showToast(forgeNote);
+    })
+    .catch((err) => {
+      console.error("[forge] gallery model failed to load", err);
+      forgeNote = null;
+    });
+}
+
+const forgeAvailable = (): boolean => forge.state.kind !== "off" || models.gallery().length > 0;
 
 if (RELAY_URL) {
   void wakeRelay(RELAY_URL).then((ok) => {
@@ -128,7 +162,10 @@ function startForge(): void {
   forge.reset();
   if (forge.busy) return;
   void askForgePrompt().then((prompt) => {
-    if (prompt) void forge.start(prompt);
+    if (!prompt) return;
+    forgeNote = null;
+    if (forge.state.kind === "off") useGallery(prompt, "off");
+    else void forge.start(prompt);
   });
 }
 
@@ -534,7 +571,7 @@ function handleMenu(): void {
     input.consumeConfirm();
     return;
   }
-  if (click && forge.state.kind !== "off" && pointInRect(click.x, click.y, titleButtonRects(W, H).forge)) {
+  if (click && forgeAvailable() && pointInRect(click.x, click.y, titleButtonRects(W, H).forge)) {
     input.consumeConfirm();
     startForge();
     return;
@@ -805,7 +842,7 @@ function render(): void {
   if (state === "menu") {
     drawTitle(
       hudCtx, W, H, t, best, audio.muted, joining ? "waking" : coop,
-      forge.state.kind === "off" ? null : { enabled: !forge.busy, status: forgeStatusLine(forge.state) },
+      forgeAvailable() ? { enabled: !forge.busy, status: forgeNote ?? forgeStatusLine(forge.state) } : null,
     );
     drawToast();
     return;
