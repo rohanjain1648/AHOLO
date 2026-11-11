@@ -119,7 +119,7 @@ export class ModelLibrary {
     loader.setMeshoptDecoder(MeshoptDecoder);
     const gltf = await loader.loadAsync(url);
     const m: LoadedModel = {
-      entry: { file: "runtime.glb", kind: "rigid", yaw: 0, pitch: 0, heightMul: 1, fit: "size", ...entry, lazy: false },
+      entry: { file: "runtime.glb", kind: "rigid", yaw: 0, pitch: 0, heightMul: 1, fit: "size", ...entry, lazy: false, selfLit: true },
       gltf,
       norm: 1,
       offset: new THREE.Vector3(),
@@ -255,7 +255,10 @@ function createGenerated(m: LoadedModel): RobotHandle {
     const src = mesh.material;
     const list = (Array.isArray(src) ? src : [src]).map((mat) => {
       const c = (mat as THREE.Material).clone() as THREE.MeshStandardMaterial;
-      if ("emissive" in c && c.emissive) mats.push(c);
+      if ("emissive" in c && c.emissive) {
+        if (m.entry.selfLit && c.map) c.emissiveMap = c.map; // glow in its own colors
+        mats.push(c);
+      }
       return c;
     });
     mesh.material = Array.isArray(src) ? list : list[0];
@@ -265,6 +268,12 @@ function createGenerated(m: LoadedModel): RobotHandle {
   let flashing = false;
   const applyGlow = () => {
     for (const mat of mats) {
+      if (m.entry.selfLit) {
+        // Self-lit: brighten the texture's own colors; no tier tint.
+        mat.emissive.setHex(0xffffff);
+        mat.emissiveIntensity = flashing ? 1.4 : 0.55;
+        continue;
+      }
       mat.emissive.setHex(flashing ? 0xffffff : tint);
       // Keep the accent faint so the Lux3D texture, not the tier color, carries the look.
       mat.emissiveIntensity = flashing ? 0.9 : 0.08;

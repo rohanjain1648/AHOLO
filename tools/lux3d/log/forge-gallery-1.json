@@ -1,0 +1,18 @@
+{
+  "id": "forge.gallery.1",
+  "prompt": "a giant mechanical scorpion made of rusty scrap with a glowing green stinger, a giant menacing boss creature for a sci-fi video game, full body, strong silhouette, centered, plain background",
+  "style": "cyberpunk",
+  "rig": "none",
+  "anims": [],
+  "tasks": {
+    "generate": 6370002
+  },
+  "timingsMs": {
+    "generate": 93910
+  },
+  "trisFromLux3D": 9558,
+  "trisInGame": 9000,
+  "clips": [],
+  "rawBytes": 13412020,
+  "finishedAt": "2026-11-11T04:55:32.892Z"
+}

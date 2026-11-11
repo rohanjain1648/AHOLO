@@ -1,0 +1,18 @@
+{
+  "id": "forge.gallery.6",
+  "prompt": "an ancient stone temple guardian statue with one glowing red eye, a giant menacing boss creature for a sci-fi video game, full body, strong silhouette, centered, plain background",
+  "style": "cyberpunk",
+  "rig": "none",
+  "anims": [],
+  "tasks": {
+    "generate": 6370175
+  },
+  "timingsMs": {
+    "generate": 91847
+  },
+  "trisFromLux3D": 8916,
+  "trisInGame": 8916,
+  "clips": [],
+  "rawBytes": 11954228,
+  "finishedAt": "2026-11-11T04:57:38.804Z"
+}

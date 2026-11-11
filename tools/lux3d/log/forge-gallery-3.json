@@ -1,0 +1,18 @@
+{
+  "id": "forge.gallery.3",
+  "prompt": "a colossal cyber dragon with neon blue circuit scales, a giant menacing boss creature for a sci-fi video game, full body, strong silhouette, centered, plain background",
+  "style": "cyberpunk",
+  "rig": "none",
+  "anims": [],
+  "tasks": {
+    "generate": 6370001
+  },
+  "timingsMs": {
+    "generate": 121324
+  },
+  "trisFromLux3D": 9480,
+  "trisInGame": 9000,
+  "clips": [],
+  "rawBytes": 9542020,
+  "finishedAt": "2026-11-11T04:55:55.745Z"
+}

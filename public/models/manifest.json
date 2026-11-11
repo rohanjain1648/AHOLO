@@ -139,6 +139,72 @@
       "fit": "size",
       "prompt": "a tiny spiked suicide drone spaceship, round armored core with orange glowing vents and a single large thruster, centered, plain background",
       "tris": 4338
+    },
+    "forge.gallery.1": {
+      "file": "gen/forge-gallery-1.glb",
+      "kind": "rigid",
+      "yaw": 0,
+      "pitch": 0,
+      "heightMul": 1,
+      "fit": "size",
+      "lazy": true,
+      "prompt": "a giant mechanical scorpion made of rusty scrap with a glowing green stinger",
+      "tris": 9000
+    },
+    "forge.gallery.2": {
+      "file": "gen/forge-gallery-2.glb",
+      "kind": "rigid",
+      "yaw": 0,
+      "pitch": 0,
+      "heightMul": 1,
+      "fit": "size",
+      "lazy": true,
+      "prompt": "a crystal golem made of glowing purple amethyst with molten lava cracks",
+      "tris": 8468
+    },
+    "forge.gallery.3": {
+      "file": "gen/forge-gallery-3.glb",
+      "kind": "rigid",
+      "yaw": 0,
+      "pitch": 0,
+      "heightMul": 1,
+      "fit": "size",
+      "lazy": true,
+      "prompt": "a colossal cyber dragon with neon blue circuit scales",
+      "tris": 9000
+    },
+    "forge.gallery.4": {
+      "file": "gen/forge-gallery-4.glb",
+      "kind": "rigid",
+      "yaw": 0,
+      "pitch": 0,
+      "heightMul": 1,
+      "fit": "size",
+      "lazy": true,
+      "prompt": "a towering junkyard robot king wearing a crown of exhaust pipes",
+      "tris": 9000
+    },
+    "forge.gallery.6": {
+      "file": "gen/forge-gallery-6.glb",
+      "kind": "rigid",
+      "yaw": 0,
+      "pitch": 0,
+      "heightMul": 1,
+      "fit": "size",
+      "lazy": true,
+      "prompt": "an ancient stone temple guardian statue with one glowing red eye",
+      "tris": 8916
+    },
+    "forge.gallery.5": {
+      "file": "gen/forge-gallery-5.glb",
+      "kind": "rigid",
+      "yaw": 0,
+      "pitch": 0,
+      "heightMul": 1,
+      "fit": "size",
+      "lazy": true,
+      "prompt": "a bioluminescent alien jellyfish warship with trailing tentacles",
+      "tris": 9000
     }
   }
 }

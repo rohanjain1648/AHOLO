@@ -27,6 +27,8 @@ export interface ModelEntry {
   fit: "height" | "size";
   /** Loaded on demand (Forge gallery), not at boot. */
   lazy: boolean;
+  /** Lit by its own texture instead of tinted (Forge bosses: Turbo output is dark, and a boss must read). */
+  selfLit?: boolean;
   /** Informational, from the pipeline: prompt and triangle count. */
   prompt?: string;
   tris?: number;

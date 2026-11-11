@@ -1,0 +1,18 @@
+{
+  "id": "forge.gallery.5",
+  "prompt": "a bioluminescent alien jellyfish warship with trailing tentacles, a giant menacing boss creature for a sci-fi video game, full body, strong silhouette, centered, plain background",
+  "style": "cyberpunk",
+  "rig": "none",
+  "anims": [],
+  "tasks": {
+    "generate": 6370138
+  },
+  "timingsMs": {
+    "generate": 129012
+  },
+  "trisFromLux3D": 9154,
+  "trisInGame": 9000,
+  "clips": [],
+  "rawBytes": 12566784,
+  "finishedAt": "2026-11-11T04:58:00.455Z"
+}

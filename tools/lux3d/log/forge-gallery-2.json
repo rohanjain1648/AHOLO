@@ -1,0 +1,18 @@
+{
+  "id": "forge.gallery.2",
+  "prompt": "a crystal golem made of glowing purple amethyst with molten lava cracks, a giant menacing boss creature for a sci-fi video game, full body, strong silhouette, centered, plain background",
+  "style": "cyberpunk",
+  "rig": "none",
+  "anims": [],
+  "tasks": {
+    "generate": 6370003
+  },
+  "timingsMs": {
+    "generate": 99780
+  },
+  "trisFromLux3D": 8468,
+  "trisInGame": 8468,
+  "clips": [],
+  "rawBytes": 10379664,
+  "finishedAt": "2026-11-11T04:55:36.601Z"
+}

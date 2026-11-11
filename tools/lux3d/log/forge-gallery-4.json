@@ -1,0 +1,18 @@
+{
+  "id": "forge.gallery.4",
+  "prompt": "a towering junkyard robot king wearing a crown of exhaust pipes, a giant menacing boss creature for a sci-fi video game, full body, strong silhouette, centered, plain background",
+  "style": "cyberpunk",
+  "rig": "none",
+  "anims": [],
+  "tasks": {
+    "generate": 6370116
+  },
+  "timingsMs": {
+    "generate": 92064
+  },
+  "trisFromLux3D": 10220,
+  "trisInGame": 9000,
+  "clips": [],
+  "rawBytes": 11787724,
+  "finishedAt": "2026-11-11T04:57:14.543Z"
+}
