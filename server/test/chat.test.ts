@@ -123,6 +123,16 @@ class FakeBackend implements ChatBackend {
 }
 
 const flush = () => new Promise((r) => setTimeout(r, 0));
+/** Wait until `get()` returns something (async chat setup can take more than a turn or two under load). */
+async function until<T>(get: () => T | undefined | null, ms = 2000): Promise<T> {
+  const end = Date.now() + ms;
+  for (;;) {
+    const v = get();
+    if (v) return v;
+    if (Date.now() > end) throw new Error("timed out waiting");
+    await flush();
+  }
+}
 let rm: RoomManager;
 let chat: FakeBackend;
 const send = (c: Conn, m: unknown) => rm.onText(c, JSON.stringify(m));
@@ -267,11 +277,10 @@ test("a spectator's chatJoin gets only the crowd channel and isn't added to the 
   send(host, { t: "chatJoin", userId: "h1" });
   const fan = watchRoom(code);
   send(fan, { t: "chatJoin", userId: "f1" });
-  await flush();
-  await flush();
-  const got = fan.last("chat")!;
+  const got = await until(() => fan.last("chat"));
+  const hostChat = await until(() => host.last("chat"));
   expect(got.squadId).toBeNull();
-  expect(got.watchId).toBe(host.last("chat")!.watchId);
+  expect(got.watchId).toBe(hostChat.watchId);
   expect(chat.log.some((l) => l.includes("f1"))).toBe(false);
 });
 
