@@ -19,6 +19,7 @@ describe("parseManifest", () => {
     expect(Object.keys(m.models)).toEqual(["enemy.grunt", "enemy.shooter"]);
     expect(m.models["enemy.grunt"].clips?.Running).toBe("Sprint_Loop");
     expect(m.models["enemy.shooter"].yaw).toBe(0);
+    expect(m.models["enemy.shooter"].pitch).toBe(0);
     expect(m.models["enemy.shooter"].heightMul).toBe(1);
   });
 

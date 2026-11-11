@@ -77,7 +77,7 @@ export class ModelLibrary {
       if (this.models.has(role)) continue;
       const scene = build();
       this.models.set(role, {
-        entry: { file: "builtin.glb", kind: "rigid", yaw: 0, heightMul: PROCEDURAL_SIZE[role] ?? 1, fit: "size" },
+        entry: { file: "builtin.glb", kind: "rigid", yaw: 0, pitch: 0, heightMul: PROCEDURAL_SIZE[role] ?? 1, fit: "size" },
         gltf: { scene, animations: [] } as unknown as GLTF,
         norm: 1,
         offset: new THREE.Vector3(),
@@ -98,7 +98,7 @@ export class ModelLibrary {
     loader.setMeshoptDecoder(MeshoptDecoder);
     const gltf = await loader.loadAsync(url);
     const m: LoadedModel = {
-      entry: { file: "runtime.glb", kind: "rigid", yaw: 0, heightMul: 1, fit: "size", ...entry },
+      entry: { file: "runtime.glb", kind: "rigid", yaw: 0, pitch: 0, heightMul: 1, fit: "size", ...entry },
       gltf,
       norm: 1,
       offset: new THREE.Vector3(),
@@ -124,7 +124,15 @@ export class ModelLibrary {
 
 /** Scale and offset a model into the reference robot's frame (feet or belly on y=0, centered). */
 function normalize(m: LoadedModel, refHeight: number): void {
-  const box = new THREE.Box3().setFromObject(m.gltf.scene);
+  // Measure in the game's frame, i.e. after the manifest's pitch/yaw.
+  const holder = new THREE.Group();
+  holder.rotation.set(m.entry.pitch, m.entry.yaw, 0, "YXZ");
+  const parent = m.gltf.scene.parent;
+  holder.add(m.gltf.scene);
+  holder.updateMatrixWorld(true);
+  const box = new THREE.Box3().setFromObject(holder);
+  holder.remove(m.gltf.scene);
+  if (parent) parent.add(m.gltf.scene);
   const size = box.getSize(new THREE.Vector3());
   const measure = m.entry.fit === "size" ? Math.max(size.x, size.y, size.z) : size.y;
   m.norm = (refHeight / (measure || 1)) * m.entry.heightMul;
@@ -212,7 +220,7 @@ function createGenerated(m: LoadedModel): RobotHandle {
   const inner = cloneSkeleton(m.gltf.scene) as THREE.Object3D;
   inner.scale.setScalar(m.norm);
   inner.position.copy(m.offset);
-  inner.rotation.y = m.entry.yaw;
+  inner.rotation.set(m.entry.pitch, m.entry.yaw, 0, "YXZ");
   root.add(inner);
 
   // Per-instance materials so tint and hit-flash stay per robot; textures stay shared.

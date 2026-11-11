@@ -101,6 +101,8 @@ export const CAST = [
     rig: "none",
     fit: "size",
     heightMul: 1.2,
+    pitch: Math.PI / 2, // generated standing up: lay it flat...
+    yaw: Math.PI / 2, // ...then turn its nose (-X) to the game's forward (+Z); checked in tools/preview
     tris: 5000,
     tex: 1024,
   },
@@ -153,6 +155,7 @@ export const CAST = [
     style: "cyberpunk",
     rig: "none",
     fit: "size",
+    yaw: Math.PI / 2, // bow is -X, engines +X: turn the bow forward; checked in tools/preview
     tris: 14000,
     tex: 1024,
   },

@@ -216,6 +216,10 @@ function startGame(): void {
   if (import.meta.env.DEV) {
     const jump = new URLSearchParams(location.search).get("phase");
     if (jump === "launch" || jump === "orbit") world.setPhase(jump);
+    // ?boss=now: the phase's boss spawns immediately (Forge testing, demo capture).
+    if (new URLSearchParams(location.search).get("boss") === "now") {
+      world.spawnEnemy(world.phase === "orbit" ? "capital" : "boss", world.player.x + 520, world.player.y - 120);
+    }
   }
   enterRun();
 }
