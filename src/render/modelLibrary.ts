@@ -15,6 +15,7 @@ import { MeshoptDecoder } from "three/examples/jsm/libs/meshopt_decoder.module.j
 import { clone as cloneSkeleton } from "three/examples/jsm/utils/SkeletonUtils.js";
 import { RobotFactory, type ClipName, type RobotHandle } from "./robots";
 import { parseManifest, resolveClip, type GameClip, type ModelEntry } from "./manifest";
+import { buildChunkTemplates, type ChunkTemplate } from "./shatter";
 
 interface LoadedModel {
   entry: ModelEntry;
@@ -131,6 +132,18 @@ export class ModelLibrary {
 
   get naturalHeight(): number {
     return this.fallback.naturalHeight;
+  }
+
+  private readonly chunkCache = new Map<string, ChunkTemplate[]>();
+
+  /** Shatter pieces for a role's model, cut once from the first instance that dies. */
+  chunks(role: string, handle: RobotHandle): ChunkTemplate[] {
+    let c = this.chunkCache.get(role);
+    if (!c) {
+      c = buildChunkTemplates(handle.body);
+      this.chunkCache.set(role, c);
+    }
+    return c;
   }
 
   isGenerated(role: string): boolean {
@@ -320,6 +333,7 @@ function createGenerated(m: LoadedModel): RobotHandle {
 
   return {
     root,
+    body: inner,
     mixer,
     play(name: ClipName, fade = 0.25) {
       wanted = name;

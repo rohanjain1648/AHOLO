@@ -32,15 +32,22 @@ export class FollowCamera {
     return HEIGHT * 1.55;
   }
 
-  update(world: World, dt: number): void {
+  /**
+   * `focus` (boss intro): w=0 follows the player, w=1 frames (x, y) and moves
+   * in closer. The weight itself is eased by the caller, so no extra damping.
+   */
+  update(world: World, dt: number, focus?: { x: number; y: number; w: number }): void {
     const p = world.player;
     // Orbit sits a little higher (more room to drift); launch/descent swoop up and back.
     const k = spaceBlend(world.phase, world.phaseT);
-    const lift = 1 + 0.22 * k + 0.7 * Math.sin(Math.PI * k);
+    const w = focus?.w ?? 0;
+    const lift = (1 + 0.22 * k + 0.7 * Math.sin(Math.PI * k)) * (1 - 0.12 * w);
     const height = HEIGHT * lift;
-    const back = BACK * (1 + 0.15 * k);
+    const back = BACK * (1 + 0.15 * k) * (1 - 0.12 * w);
     this.x = damp(this.x, p.x, 7, dt);
     this.y = damp(this.y, p.y, 7, dt);
+    const cx = focus ? this.x + (focus.x - this.x) * w : this.x;
+    const cy = focus ? this.y + (focus.y - this.y) * w : this.y;
 
     this.trauma = Math.max(0, this.trauma + world.consumeTrauma() - dt * 1.4);
     this.trauma = Math.min(1, this.trauma);
@@ -52,8 +59,8 @@ export class FollowCamera {
     const jz = shake * 22 * (this.rng.next() * 2 - 1);
 
     // Ground plane (x,y) maps to Three.js world (X,Z); Y is up.
-    this.camera.position.set(this.x + jx, height + jy, this.y + back + jz);
-    this.camera.lookAt(this.x, 24, this.y);
+    this.camera.position.set(cx + jx, height + jy, cy + back + jz);
+    this.camera.lookAt(cx, 24 + 130 * w, cy); // aim up the boss's body, not at its feet
     this.camera.rotation.z += shake * 0.02 * (this.rng.next() * 2 - 1);
   }
 }

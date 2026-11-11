@@ -6,13 +6,14 @@
  */
 import * as THREE from "three";
 import { clamp } from "../core/math";
-import { COOP, PALETTE } from "../game/config";
+import { COOP, PALETTE, PLAYER } from "../game/config";
 import type { Player } from "../game/player";
 import type { World } from "../game/world";
 import type { RobotHandle } from "./robots";
 import type { ModelLibrary } from "./modelLibrary";
 import { PLAYER_ROLE, roleForEnemy, SHIP_ROLE } from "./manifest";
 import { spaceBlend } from "../game/phaseBlend";
+import { Shatters } from "./shatter";
 import { createFxPools, RingPool, type FxPools } from "./fx";
 
 const hexToNum = (s: string): number => parseInt(s.replace("#", ""), 16);
@@ -50,6 +51,9 @@ interface PlayerVisual {
 interface EnemySlot {
   role: string;
   h: RobotHandle;
+  /** Shown last frame: dying now means a shatter burst. */
+  alive: boolean;
+  boss: boolean;
 }
 
 export class WorldView {
@@ -67,11 +71,13 @@ export class WorldView {
   robotBaseScale = 60;
   /** Model role of the current Forge boss, once loaded; forged bosses use it. */
   forgeRole: string | null = null;
+  private readonly shatters: Shatters;
 
   constructor(
     private readonly scene: THREE.Scene,
     private readonly factory: ModelLibrary,
   ) {
+    this.shatters = new Shatters(scene);
     for (let slot = 0; slot < COOP.maxPlayers; slot++) this.playerVisuals.push(this.createPlayerVisual(slot));
 
     // Ping beams: at most one live ping per player per cooldown window.
@@ -173,7 +179,7 @@ export class WorldView {
       h.root.castShadow = true;
       this.scene.add(h.root);
     }
-    this.enemySlots[i] = { role, h };
+    this.enemySlots[i] = { role, h, alive: false, boss: false };
     return h;
   }
 
@@ -209,10 +215,20 @@ export class WorldView {
       const e = world.enemies[i];
       if (e.dead) {
         const slot = this.enemySlots[i];
-        if (slot) slot.h.root.visible = false;
+        if (slot) {
+          if (slot.alive && slot.h.root.visible) {
+            // It just died: break its own model apart.
+            this.shatters.spawn(this.factory.chunks(slot.role, slot.h), slot.h.body.matrixWorld, slot.boss ? 2.2 : 1);
+          }
+          slot.alive = false;
+          slot.h.root.visible = false;
+        }
         continue;
       }
       const h = this.enemyModel(i, e.forged && this.forgeRole ? this.forgeRole : roleForEnemy(e.kind));
+      const slotInfo = this.enemySlots[i]!;
+      slotInfo.alive = true;
+      slotInfo.boss = e.isBoss;
       h.root.visible = true;
       h.root.position.set(e.x, 0, e.y);
       if (e.kind === "asteroid") {
@@ -238,6 +254,8 @@ export class WorldView {
     }
 
     this.syncFx(world);
+    // Pieces fall and skid on the ground; in orbit they just drift.
+    this.shatters.update(dt, spaceBlend(world.phase, world.phaseT) < 0.5 ? 900 : 0);
   }
 
   private syncPlayer(world: World, v: PlayerVisual, p: Player | undefined, isLocal: boolean, dt: number): void {
@@ -255,7 +273,8 @@ export class WorldView {
 
     const transition = world.phase === "launch" || world.phase === "descent";
     const altitude = Math.sin(Math.PI * k) * 70; // a little lift-off during the flight up / down
-    const blinking = !transition && p.invuln > 0 && Math.floor(world.time * 20) % 2 === 0;
+    // Blink only for post-hit i-frames, not the longer boss-intro grace.
+    const blinking = !transition && p.invuln > 0 && p.invuln <= PLAYER.iFrames && Math.floor(world.time * 20) % 2 === 0;
     const r = inShip ? v.ship : v.robot;
     r.root.position.set(p.x, altitude, p.y);
     r.root.rotation.y = FORWARD_OFFSET - p.facing;

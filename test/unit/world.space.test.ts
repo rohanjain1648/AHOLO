@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { PHASES, SPACE_KINDS } from "../../src/game/config";
+import { BOSS_INTRO_SECONDS, PHASES, SPACE_KINDS } from "../../src/game/config";
 import { IDLE_INPUT, type PlayerInput } from "../../src/game/types";
 import { World } from "../../src/game/world";
 import { spaceBlend } from "../../src/game/phaseBlend";
@@ -80,6 +80,19 @@ describe("surface -> launch -> orbit -> descent loop", () => {
     w.player.maxHp = w.player.hp = 1e9; // survive long enough to see it
     runFor(w, PHASES.orbitBossDelay + 1, [IDLE_INPUT]);
     expect(w.enemies.some((e) => !e.dead && e.kind === "capital")).toBe(true);
+  });
+});
+
+describe("boss intro", () => {
+  it("a boss arriving makes every player briefly invulnerable, for the camera intro", () => {
+    const w = new World(silentAudio());
+    w.player.invuln = 0;
+    w.spawnEnemy("boss", 300, 0);
+    expect(w.player.invuln).toBeGreaterThanOrEqual(BOSS_INTRO_SECONDS);
+    const grunt = new World(silentAudio());
+    grunt.player.invuln = 0;
+    grunt.spawnEnemy("grunt", 300, 0);
+    expect(grunt.player.invuln).toBe(0);
   });
 });
 

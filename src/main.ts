@@ -5,6 +5,8 @@ import { GameLoop } from "./core/loop";
 import { IDLE_INPUT, type PlayerInput } from "./game/types";
 import { World, type RunStats } from "./game/world";
 import { phaseCallout, spaceBlend } from "./game/phaseBlend";
+import { INTRO_SECONDS, introWeight } from "./render/bossIntro";
+import type { Enemy } from "./game/types";
 import { drawHud, pingButtonRect } from "./ui/hud";
 import {
   drawGameOver,
@@ -853,7 +855,7 @@ function render(): void {
   // Sync the 3D scene from World's data + advance camera/atmosphere on the
   // real render clock (not the fixed sim step) so animation blending stays smooth.
   worldView.sync(world, rdt);
-  followCamera.update(world, rdt);
+  followCamera.update(world, rdt, stepBossIntro());
   scene3d.followSun(world.player.x, world.player.y);
   scene3d.updateAtmosphere(rdt, world.player.x, world.player.y);
   scene3d.setSpaceBlend(state === "menu" || state === "lobby" ? 0 : spaceBlend(world.phase, world.phaseT));
@@ -879,6 +881,7 @@ function render(): void {
   drawHud(hudCtx, world, audio.muted, W, H, scene3d.camera);
   drawScreenFlash(t);
   if (state === "playing") drawPhaseCallout();
+  if (state === "playing") drawBossIntro();
   if (state === "playing" && (forge.busy || forge.state.kind === "failed")) {
     const line = forgeStatusLine(forge.state);
     if (line) {
@@ -910,6 +913,60 @@ function render(): void {
   }
   if ((mode === "client" || mode === "spectator") && clientSession?.hostPaused && relay?.status === "open") drawBanner(hudCtx, W, "Host paused — waiting for the host's game…");
   drawToast();
+}
+
+// --- Boss intro: camera swoops to a newly arrived boss and its name fills the screen.
+// Detected from the (synced) enemies, so co-op clients and spectators get it too.
+let introT = -1;
+let introStart = 0;
+let introBoss: Enemy | null = null;
+let lastBoss: Enemy | null = null;
+
+/** Timed on the game clock, so it lines up with the sim's intro invulnerability. */
+function stepBossIntro(): { x: number; y: number; w: number } | undefined {
+  const boss = state === "playing" || state === "levelup" || state === "paused" ? world.enemies.find((e) => !e.dead && e.isBoss) ?? null : null;
+  if (boss && boss !== lastBoss && boss.spawnT < 1.5) {
+    introBoss = boss;
+    introStart = world.time - boss.spawnT;
+  }
+  lastBoss = boss;
+  if (!introBoss) return undefined;
+  introT = world.time - introStart;
+  if (introT >= INTRO_SECONDS || introBoss.dead) {
+    introT = -1;
+    introBoss = null;
+    return undefined;
+  }
+  return { x: introBoss.x, y: introBoss.y, w: introWeight(introT) };
+}
+
+function drawBossIntro(): void {
+  if (introT < 0 || !introBoss) return;
+  const a = Math.min(1, introWeight(introT) * 1.4);
+  if (a <= 0.01) return;
+  const ctx = hudCtx;
+  const name = world.bossLabel;
+  const sub = introBoss.forged ? "Forged with Aholo Lux3D" : introBoss.kind === "capital" ? "Flagship of the swarm" : "Guardian of the surface";
+  ctx.save();
+  ctx.globalAlpha = a;
+  // Letterbox bars for the cinematic beat.
+  ctx.fillStyle = "rgba(0,0,0,0.75)";
+  const bar = H * 0.09 * a;
+  ctx.fillRect(0, 0, W, bar);
+  ctx.fillRect(0, H - bar, W, bar);
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  const size = Math.min(64, (W * 0.9) / Math.max(8, name.length * 0.62));
+  ctx.font = `900 ${size}px 'Segoe UI', system-ui, sans-serif`;
+  ctx.shadowColor = introBoss.forged ? "#ffb44d" : "#ff5a5a";
+  ctx.shadowBlur = 28;
+  ctx.fillStyle = "#fff4e0";
+  ctx.fillText(name, W / 2, H * 0.72);
+  ctx.shadowBlur = 0;
+  ctx.font = `700 ${Math.max(14, size * 0.3)}px 'Segoe UI', system-ui, sans-serif`;
+  ctx.fillStyle = introBoss.forged ? "rgba(255,200,130,0.95)" : "rgba(230,244,255,0.8)";
+  ctx.fillText(sub.toUpperCase(), W / 2, H * 0.72 + size * 0.8);
+  ctx.restore();
 }
 
 function drawPhaseCallout(): void {

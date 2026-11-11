@@ -19,6 +19,8 @@ export type ClipName =
 
 export interface RobotHandle {
   root: THREE.Object3D;
+  /** The model itself (under any normalizing wrapper): what shatter deaths cut up. */
+  body: THREE.Object3D;
   mixer: THREE.AnimationMixer;
   /** Crossfade to a clip; safe to call every frame with the same name (no-op if already playing). */
   play(name: ClipName, fade?: number): void;
@@ -108,6 +110,7 @@ export class RobotFactory {
 
     const handle: RobotHandle = {
       root,
+      body: root,
       mixer,
       play(name, fade = 0.25) {
         if (currentName === name) return;

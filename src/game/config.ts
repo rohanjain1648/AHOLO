@@ -45,6 +45,9 @@ export const PHASES = {
   loopHpMul: 1.35,
 };
 
+/** Length of the boss-arrival camera intro; players can't be hurt while it plays. */
+export const BOSS_INTRO_SECONDS = 2.6;
+
 /** Ship handling in orbit: thrust and inertia instead of instant steering. */
 export const SPACE = {
   thrust: 820,

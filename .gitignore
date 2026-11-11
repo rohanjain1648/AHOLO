@@ -14,3 +14,4 @@ dist-coop/
 tools/lux3d/raw/
 tools/lux3d/state.json
 .env
+docs/report/auto/

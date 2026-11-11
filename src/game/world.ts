@@ -1,7 +1,7 @@
 import { SpatialGrid } from "../core/grid";
 import { angleTo, clamp, dist, dist2, len, RNG, TAU } from "../core/math";
 import type { Audio } from "../core/audio";
-import { COOP, DIRECTOR, isBossKind, PALETTE, PHASES, PLAYER, SPACE, WORLD, xpForLevel } from "./config";
+import { BOSS_INTRO_SECONDS, COOP, DIRECTOR, isBossKind, PALETTE, PHASES, PLAYER, SPACE, WORLD, xpForLevel } from "./config";
 import type { EnemyKind, Phase } from "./config";
 import { ARCHETYPES, isArchetypeId, type ArchetypeId } from "./archetypes";
 import { applyEffect, type Effect, type HapticKind } from "./effects";
@@ -263,6 +263,8 @@ export class World {
     e.enraged = false;
     if (isBossKind(kind)) {
       this.boss = e;
+      // The camera swoops to the boss for its intro: nobody gets hit while looking away.
+      for (const p of this.players) if (p.active) p.invuln = Math.max(p.invuln, BOSS_INTRO_SECONDS);
       this.emit({ k: "sfx", n: "bossWarn", slot: -1 });
       this.emit({ k: "flash", color: "255,200,90", i: 0.7, slot: -1 });
       this.emit({ k: "trauma", v: 0.6, slot: -1 });
