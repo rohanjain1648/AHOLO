@@ -95,7 +95,7 @@ const titleScale = (h: number): number => Math.min(1, Math.max(0.6, h / 760));
  * out pre-scale and mapped through the same transform `drawTitle` draws with,
  * so hit-testing matches what's on screen at any viewport height.
  */
-export function titleButtonRects(w: number, h: number): { solo: Rect; host: Rect; join: Rect; forge: Rect } {
+export function titleButtonRects(w: number, h: number): { solo: Rect; host: Rect; join: Rect; hangar: Rect; forge: Rect } {
   const play = titlePlayButtonRect(w, h);
   const panelTop = titlePanelRect(w, h).y;
   const s = titleScale(h);
@@ -112,7 +112,8 @@ export function titleButtonRects(w: number, h: number): { solo: Rect; host: Rect
     solo: map(play),
     host: map({ x: play.x, y: rowY, w: half, h: 48 }),
     join: map({ x: play.x + half + gap, y: rowY, w: half, h: 48 }),
-    forge: map({ x: play.x, y: rowY + 48 + gap, w: play.w, h: 44 }),
+    hangar: map({ x: play.x, y: rowY + 48 + gap, w: half, h: 44 }),
+    forge: map({ x: play.x + half + gap, y: rowY + 48 + gap, w: half, h: 44 }),
   };
 }
 
@@ -347,10 +348,11 @@ export function drawTitle(
     ctx.fillText(coop === "waking" ? "Waking co-op server…" : "Co-op unavailable", row.x + row.w / 2, row.y + row.h / 2);
   }
 
+  drawButton(ctx, rects.hangar, "◈  HANGAR", time, "#9d7bff", fontPx);
   if (forge) {
     ctx.save();
     if (!forge.enabled) ctx.globalAlpha = 0.5;
-    drawButton(ctx, rects.forge, "⚒  FORGE A BOSS", time, "#ffb44d", fontPx);
+    drawButton(ctx, rects.forge, "⚒  FORGE", time, "#ffb44d", fontPx);
     ctx.restore();
     if (forge.status) {
       ctx.fillStyle = "rgba(255,210,150,0.9)";

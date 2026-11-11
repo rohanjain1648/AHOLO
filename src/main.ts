@@ -40,6 +40,11 @@ import {
 import { askForgePrompt, askRoomCode } from "./ui/codeInput";
 import { ForgeClient, forgeStatusLine } from "./forge/forgeClient";
 import { pickGalleryBoss } from "./forge/gallery";
+import { Hangar } from "./render/hangar";
+import { hangarCatalog, hangarInfo } from "./render/hangarInfo";
+import { drawHangar, hangarRects } from "./ui/hangarScreen";
+import type { ModelEntry } from "./render/manifest";
+import type { RobotHandle } from "./render/robots";
 import { RelayClient, relayHttpUrl, relayUrl, wakeRelay } from "./net/relayClient";
 import { ChatController, type ChatRole } from "./chat/chatController";
 import { NexconnTransport } from "./chat/nexconnTransport";
@@ -50,7 +55,7 @@ import { ClientSession } from "./net/clientSession";
 import type { ClientToHost, ForgeSrc, HostToClient, OverInfo } from "./net/gameProtocol";
 import { SPECTATOR_SLOT, type ErrorReason, type RelayToClient, type RosterEntry } from "./net/relayProtocol";
 
-type State = "loading" | "menu" | "lobby" | "playing" | "levelup" | "paused" | "gameover";
+type State = "loading" | "menu" | "lobby" | "playing" | "levelup" | "paused" | "gameover" | "hangar";
 type Mode = "solo" | "host" | "client" | "spectator";
 
 const BEST_KEY = "novaswarm.best";
@@ -69,6 +74,7 @@ let W = window.innerWidth;
 let H = window.innerHeight;
 
 const scene3d = new Scene3D(sceneCanvas);
+const hangar = new Hangar();
 const world = new World(audio);
 const followCamera = new FollowCamera(scene3d.camera);
 world.setViewRadius(followCamera.viewRadius);
@@ -121,7 +127,7 @@ function wearForge(role: string, name: string, src: ForgeSrc): void {
 /** Co-op client: the host shared its Forge boss; load the same model. */
 function loadSharedForge(src: ForgeSrc, name: string): void {
   const role = "url" in src ? `forge.boss.${++forgeCount}` : src.gallery;
-  const load = "url" in src ? models.loadRuntime(role, src.url) : models.loadLazy(src.gallery);
+  const load = "url" in src ? models.loadRuntime(role, src.url, { prompt: name }) : models.loadLazy(src.gallery);
   load
     .then(() => {
       if (worldView) worldView.forgeRole = role;
@@ -133,7 +139,7 @@ function loadSharedForge(src: ForgeSrc, name: string): void {
 forge.onReady = (url, prompt) => {
   const role = `forge.boss.${++forgeCount}`;
   models
-    .loadRuntime(role, url)
+    .loadRuntime(role, url, { prompt })
     .then(() => {
       forgeNote = null;
       wearForge(role, prompt, { url });
@@ -199,6 +205,7 @@ function resize(): void {
   hudCanvas.style.height = `${H}px`;
   hudCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
   scene3d.resize(W, H);
+  hangar.resize(W, H);
 }
 window.addEventListener("resize", resize);
 resize();
@@ -584,6 +591,56 @@ function copyInvite(): void {
 }
 
 // --- Per-state input handling (runs on the fixed update tick) ---------------
+// --- Hangar: browse every Lux3D model on a turntable ---------------------------
+let hangarItems: { role: string; entry: ModelEntry }[] = [];
+let hangarIndex = 0;
+let hangarLoading = false;
+const hangarHandles = new Map<string, RobotHandle>();
+
+function openHangar(): void {
+  const byRole = new Map(models.catalog().map((c) => [c.role, c]));
+  hangarItems = hangarCatalog([...byRole.keys()]).map((r) => byRole.get(r)!);
+  if (hangarItems.length === 0) {
+    showToast("No Lux3D models loaded");
+    return;
+  }
+  hangarIndex = 0;
+  state = "hangar";
+  hangar.resize(W, H);
+  void showHangarItem();
+}
+
+async function showHangarItem(): Promise<void> {
+  const item = hangarItems[hangarIndex];
+  hangarLoading = true;
+  try {
+    await models.loadLazy(item.role).catch(() => undefined); // no-op unless it's a lazy gallery boss
+    let h = hangarHandles.get(item.role);
+    if (!h) hangarHandles.set(item.role, (h = models.create(item.role)));
+    if (hangarItems[hangarIndex] === item) hangar.show(h);
+  } finally {
+    if (hangarItems[hangarIndex] === item) hangarLoading = false;
+  }
+}
+
+function stepHangar(delta: number): void {
+  hangarIndex = (hangarIndex + delta + hangarItems.length) % hangarItems.length;
+  void showHangarItem();
+}
+
+function handleHangar(): void {
+  const click = input.consumeClick();
+  const r = hangarRects(W, H);
+  if (input.consumeKey("Escape") || input.consumeKey("Backspace") || (click && pointInRect(click.x, click.y, r.back))) {
+    input.consumeConfirm();
+    state = "menu";
+    return;
+  }
+  if (input.consumeKey("ArrowLeft") || input.consumeKey("KeyA") || (click && pointInRect(click.x, click.y, r.prev))) stepHangar(-1);
+  else if (input.consumeKey("ArrowRight") || input.consumeKey("KeyD") || (click && pointInRect(click.x, click.y, r.next))) stepHangar(1);
+  input.consumeConfirm();
+}
+
 function handleMenu(): void {
   if (input.consumeKey("KeyM")) {
     audio.unlock();
@@ -594,6 +651,11 @@ function handleMenu(): void {
     audio.unlock();
     audio.toggleMute();
     input.consumeConfirm();
+    return;
+  }
+  if (click && pointInRect(click.x, click.y, titleButtonRects(W, H).hangar)) {
+    input.consumeConfirm();
+    openHangar();
     return;
   }
   if (click && forgeAvailable() && pointInRect(click.x, click.y, titleButtonRects(W, H).forge)) {
@@ -821,6 +883,7 @@ function update(dt: number): void {
   switch (state) {
     case "loading": break;
     case "menu": handleMenu(); break;
+    case "hangar": handleHangar(); break;
     case "lobby": handleLobby(); break;
     case "playing": handlePlaying(dt); break;
     case "levelup": handleLevelUp(dt); break;
@@ -842,6 +905,15 @@ function render(): void {
   if (state === "loading" || !worldView) {
     scene3d.render();
     drawLoading(t);
+    return;
+  }
+
+  if (state === "hangar") {
+    hangar.update(rdt);
+    hangar.render(scene3d.renderer);
+    const cur = hangarItems[hangarIndex];
+    drawHangar(hudCtx, W, H, t, hangarLoading || !cur ? null : hangarInfo(cur.role, cur.entry), hangarIndex, hangarItems.length, hangarLoading);
+    drawToast();
     return;
   }
 

@@ -45,6 +45,14 @@ export class ModelLibrary {
       .map(([role, e]) => ({ role, prompt: e.prompt ?? role }));
   }
 
+  /** Every Lux3D model the game knows (loaded or lazy), for the hangar. Built-in placeholders are left out. */
+  catalog(): { role: string; entry: ModelEntry }[] {
+    const out = new Map<string, ModelEntry>();
+    for (const [role, m] of this.models) if (m.entry.file !== "builtin.glb") out.set(role, m.entry);
+    for (const [role, e] of this.lazy) if (!out.has(role)) out.set(role, e);
+    return [...out].map(([role, entry]) => ({ role, entry }));
+  }
+
   /** Fetch a lazy model now (no-op if already loaded). */
   async loadLazy(role: string): Promise<void> {
     if (this.models.has(role)) return;
