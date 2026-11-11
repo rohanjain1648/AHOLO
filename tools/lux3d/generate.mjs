@@ -98,9 +98,19 @@ function freshUrl(st, key) {
 }
 
 async function download(url, file) {
-  const res = await fetch(url, { signal: AbortSignal.timeout(120_000) });
-  if (!res.ok) throw new Error(`download failed: HTTP ${res.status}`);
-  const buf = Buffer.from(await res.arrayBuffer());
+  // Large files over a long link sometimes drop mid-transfer ("terminated"); retry a few times.
+  let buf;
+  for (let attempt = 1; ; attempt++) {
+    try {
+      const res = await fetch(url, { signal: AbortSignal.timeout(180_000) });
+      if (!res.ok) throw new Error(`download failed: HTTP ${res.status}`);
+      buf = Buffer.from(await res.arrayBuffer());
+      break;
+    } catch (err) {
+      if (attempt >= 3) throw err;
+      await sleep(3000 * attempt);
+    }
+  }
   mkdirSync(dirname(file), { recursive: true });
   writeFileSync(file, buf);
   return buf.length;

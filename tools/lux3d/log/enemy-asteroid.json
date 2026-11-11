@@ -1,0 +1,18 @@
+{
+  "id": "enemy.asteroid",
+  "prompt": "a jagged grey space asteroid rock with craters and faint blue crystal veins, single rock, centered, plain background",
+  "style": "photorealistic",
+  "rig": "none",
+  "anims": [],
+  "tasks": {
+    "generate": 6368516
+  },
+  "timingsMs": {
+    "generate": 259418
+  },
+  "trisFromLux3D": 9016,
+  "trisInGame": 1500,
+  "clips": [],
+  "rawBytes": 11217496,
+  "finishedAt": "2026-11-11T04:35:12.712Z"
+}

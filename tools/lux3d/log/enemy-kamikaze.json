@@ -1,0 +1,18 @@
+{
+  "id": "enemy.kamikaze",
+  "prompt": "a tiny spiked suicide drone spaceship, round armored core with orange glowing vents and a single large thruster, centered, plain background",
+  "style": "cyberpunk",
+  "rig": "none",
+  "anims": [],
+  "tasks": {
+    "generate": 6368108
+  },
+  "timingsMs": {
+    "generate": 313552
+  },
+  "trisFromLux3D": 9006,
+  "trisInGame": 4338,
+  "clips": [],
+  "rawBytes": 14644468,
+  "finishedAt": "2026-11-11T04:37:15.643Z"
+}

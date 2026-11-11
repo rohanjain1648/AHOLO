@@ -1,0 +1,18 @@
+{
+  "id": "enemy.interceptor",
+  "prompt": "a small aggressive alien interceptor spaceship, dark hull with magenta glowing edges, sharp forked nose, compact wings, centered, plain background",
+  "style": "cyberpunk",
+  "rig": "none",
+  "anims": [],
+  "tasks": {
+    "generate": 6368107
+  },
+  "timingsMs": {
+    "generate": 290572
+  },
+  "trisFromLux3D": 8692,
+  "trisInGame": 2556,
+  "clips": [],
+  "rawBytes": 11719544,
+  "finishedAt": "2026-11-11T04:30:37.922Z"
+}

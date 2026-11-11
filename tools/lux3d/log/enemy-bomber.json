@@ -1,0 +1,18 @@
+{
+  "id": "enemy.bomber",
+  "prompt": "a heavy armored gunship spaceship, wide flat purple hull, two big side cannons, glowing violet engine array, centered, plain background",
+  "style": "cyberpunk",
+  "rig": "none",
+  "anims": [],
+  "tasks": {
+    "generate": 6368512
+  },
+  "timingsMs": {
+    "generate": 290023
+  },
+  "trisFromLux3D": 7538,
+  "trisInGame": 3500,
+  "clips": [],
+  "rawBytes": 8886984,
+  "finishedAt": "2026-11-11T04:35:37.129Z"
+}

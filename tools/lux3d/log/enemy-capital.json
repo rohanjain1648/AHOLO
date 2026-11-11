@@ -1,0 +1,18 @@
+{
+  "id": "enemy.capital",
+  "prompt": "a massive sci-fi capital battleship, long armored dark grey hull, rows of orange glowing turrets on top, command bridge tower, huge engine block at the back, centered, plain background",
+  "style": "cyberpunk",
+  "rig": "none",
+  "anims": [],
+  "tasks": {
+    "generate": 6368617
+  },
+  "timingsMs": {
+    "generate": 281761
+  },
+  "trisFromLux3D": 9410,
+  "trisInGame": 9410,
+  "clips": [],
+  "rawBytes": 14362752,
+  "finishedAt": "2026-11-11T04:36:58.566Z"
+}

@@ -84,6 +84,60 @@
       "heightMul": 1,
       "prompt": "a towering war mech boss, massive armored chassis, glowing red reactor core in its chest, shoulder-mounted cannons, menacing, full body, standing perfectly upright with straight legs, in a T-pose with arms straight out to the sides, centered, plain background, game character",
       "tris": 9688
+    },
+    "enemy.interceptor": {
+      "file": "gen/enemy-interceptor.glb",
+      "kind": "rigid",
+      "yaw": 0,
+      "heightMul": 1,
+      "fit": "size",
+      "prompt": "a small aggressive alien interceptor spaceship, dark hull with magenta glowing edges, sharp forked nose, compact wings, centered, plain background",
+      "tris": 2556
+    },
+    "player.ship": {
+      "file": "gen/player-ship.glb",
+      "kind": "rigid",
+      "yaw": 0,
+      "heightMul": 1.2,
+      "fit": "size",
+      "prompt": "a sleek sci-fi starfighter, white and cyan hull, swept-forward wings, twin glowing cyan engines at the back, top-down readable silhouette, centered, plain background",
+      "tris": 5000
+    },
+    "enemy.asteroid": {
+      "file": "gen/enemy-asteroid.glb",
+      "kind": "rigid",
+      "yaw": 0,
+      "heightMul": 1,
+      "fit": "size",
+      "prompt": "a jagged grey space asteroid rock with craters and faint blue crystal veins, single rock, centered, plain background",
+      "tris": 1500
+    },
+    "enemy.bomber": {
+      "file": "gen/enemy-bomber.glb",
+      "kind": "rigid",
+      "yaw": 0,
+      "heightMul": 1.1,
+      "fit": "size",
+      "prompt": "a heavy armored gunship spaceship, wide flat purple hull, two big side cannons, glowing violet engine array, centered, plain background",
+      "tris": 3500
+    },
+    "enemy.capital": {
+      "file": "gen/enemy-capital.glb",
+      "kind": "rigid",
+      "yaw": 0,
+      "heightMul": 1,
+      "fit": "size",
+      "prompt": "a massive sci-fi capital battleship, long armored dark grey hull, rows of orange glowing turrets on top, command bridge tower, huge engine block at the back, centered, plain background",
+      "tris": 9410
+    },
+    "enemy.kamikaze": {
+      "file": "gen/enemy-kamikaze.glb",
+      "kind": "rigid",
+      "yaw": 0,
+      "heightMul": 0.8,
+      "fit": "size",
+      "prompt": "a tiny spiked suicide drone spaceship, round armored core with orange glowing vents and a single large thruster, centered, plain background",
+      "tris": 4338
     }
   }
 }
