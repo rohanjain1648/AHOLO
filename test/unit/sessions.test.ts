@@ -297,3 +297,32 @@ test("a spectator session updates every robot and never sends a pose", () => {
   expect(cw.players[1].x).toBeCloseTo(456, 0);
   expect(cwire.text).toHaveLength(0);
 });
+
+test("host shares its forged boss: now, and again at every run start", () => {
+  wire.text.length = 0;
+  host.setForge({ gallery: "forge.gallery.3" }, "a cyber dragon");
+  expect(wire.game()).toContainEqual({ k: "forge", src: { gallery: "forge.gallery.3" }, name: "a cyber dragon" });
+  wire.text.length = 0;
+  host.start(SLOTS);
+  const msgs = wire.game();
+  const startAt = msgs.findIndex((m) => m.k === "start");
+  const forgeAt = msgs.findIndex((m) => m.k === "forge");
+  expect(forgeAt).toBeGreaterThan(startAt); // after start, so the client's reset can't wipe it
+});
+
+test("client hands a forge message to the game and marks forged enemies from snapshots", () => {
+  startClient();
+  const got: string[] = [];
+  client.onForge = (src, name) => got.push(`${"url" in src ? src.url : src.gallery}|${name}`);
+  client.onHostMessage({ k: "forge", src: { url: "https://cdn.example/b.glb" }, name: "a golem" });
+  expect(got).toEqual(["https://cdn.example/b.glb|a golem"]);
+
+  hw.forgeName = "a golem";
+  hw.enemies.length = 0;
+  hw.spawnEnemy("boss", hw.players[0].x + 400, hw.players[0].y);
+  cw.forgeName = "a golem";
+  for (let i = 0; i < 20; i++) tick();
+  const boss = cw.enemies.find((e) => !e.dead && e.isBoss);
+  expect(boss?.forged).toBe(true);
+  expect(cw.bossLabel).toBe("A GOLEM");
+});

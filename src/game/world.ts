@@ -969,7 +969,8 @@ export class World {
 
   /** Name over the boss bar: the Forge prompt when this boss wears it. */
   get bossLabel(): string {
-    const b = this.boss;
+    // A co-op client has no local boss; it reads the boss from the synced enemies.
+    const b = this.boss ?? this.enemies.find((e) => !e.dead && e.isBoss) ?? null;
     if (b && b.forged && this.forgeName) return this.forgeName.toUpperCase();
     if (b ? b.kind === "capital" : this.phase === "orbit") return "CAPITAL SHIP";
     return "WARDEN";

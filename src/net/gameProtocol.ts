@@ -22,8 +22,13 @@ export interface OverInfo {
   perPlayer: { slot: number; name: string; kills: number }[];
 }
 
+/** Where a Forge boss model comes from: a live Lux3D result, or a pre-forged gallery entry. */
+export type ForgeSrc = { url: string } | { gallery: string };
+
 export type HostToClient =
   | { k: "start"; slots: SlotInfo[] }
+  /** The host's Forge boss: clients load the same model so everyone fights the same thing. */
+  | { k: "forge"; src: ForgeSrc; name: string }
   | { k: "cards"; round: number; cards: UpgradeCard[] }
   | OverInfo
   | { k: "lobby" };

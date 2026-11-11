@@ -45,7 +45,7 @@ import { quickOptions, type QuickLine } from "./chat/quickChat";
 import { ChatPanel, type ChatPanelMode } from "./ui/chatPanel";
 import { HostSession } from "./net/hostSession";
 import { ClientSession } from "./net/clientSession";
-import type { ClientToHost, HostToClient, OverInfo } from "./net/gameProtocol";
+import type { ClientToHost, ForgeSrc, HostToClient, OverInfo } from "./net/gameProtocol";
 import { SPECTATOR_SLOT, type ErrorReason, type RelayToClient, type RosterEntry } from "./net/relayProtocol";
 
 type State = "loading" | "menu" | "lobby" | "playing" | "levelup" | "paused" | "gameover";
@@ -106,9 +106,26 @@ let forgeCount = 0;
 /** Title line while a pre-forged gallery boss stands in for live Forge. */
 let forgeNote: string | null = null;
 
-function wearForge(role: string, name: string): void {
+/** Where the current Forge model came from, so a co-op host can tell its clients. */
+let forgeSrc: ForgeSrc | null = null;
+
+function wearForge(role: string, name: string, src: ForgeSrc): void {
   if (worldView) worldView.forgeRole = role;
   world.forgeName = name;
+  forgeSrc = src;
+  hostSession?.setForge(src, name);
+}
+
+/** Co-op client: the host shared its Forge boss; load the same model. */
+function loadSharedForge(src: ForgeSrc, name: string): void {
+  const role = "url" in src ? `forge.boss.${++forgeCount}` : src.gallery;
+  const load = "url" in src ? models.loadRuntime(role, src.url) : models.loadLazy(src.gallery);
+  load
+    .then(() => {
+      if (worldView) worldView.forgeRole = role;
+      world.forgeName = name;
+    })
+    .catch((err) => console.error("[forge] shared model failed to load", err));
 }
 
 forge.onReady = (url, prompt) => {
@@ -117,7 +134,7 @@ forge.onReady = (url, prompt) => {
     .loadRuntime(role, url)
     .then(() => {
       forgeNote = null;
-      wearForge(role, prompt);
+      wearForge(role, prompt, { url });
       showToast(`⚒ “${prompt}” is forged. It comes with the next boss.`);
     })
     .catch((err) => {
@@ -138,7 +155,7 @@ function useGallery(idea: string, reason: string): void {
   models
     .loadLazy(pick.role)
     .then(() => {
-      wearForge(pick.role, pick.prompt);
+      wearForge(pick.role, pick.prompt, { gallery: pick.role });
       const why = reason === "off" ? "Live Forge is offline" : "Live Forge is busy";
       forgeNote = `⚒ ${why}. Pre-forged boss: “${pick.prompt}”`;
       showToast(forgeNote);
@@ -325,6 +342,7 @@ function hostRoom(): void {
     .then(() => {
       mode = "host";
       hostSession = new HostSession(world, relay!);
+      if (forgeSrc && world.forgeName) hostSession.setForge(forgeSrc, world.forgeName);
       state = "lobby";
       startChat("host", 0);
     })
@@ -350,6 +368,7 @@ function joinRoom(code: string): void {
     .then(({ slot }) => {
       mode = "client";
       clientSession = new ClientSession(world, relay!, slot);
+      clientSession.onForge = loadSharedForge;
       state = "lobby";
       startChat("player", slot);
     })
@@ -376,6 +395,7 @@ function watchRoom(code: string): void {
     .then(() => {
       mode = "spectator";
       clientSession = new ClientSession(world, relay!, SPECTATOR_SLOT);
+      clientSession.onForge = loadSharedForge;
       world.spectating = true;
       followSlot = 0;
       state = "lobby";

@@ -3,7 +3,7 @@ import { COOP } from "../game/config";
 import { IDLE_INPUT, type PlayerInput } from "../game/types";
 import { toCard, type Upgrade, type UpgradeCard } from "../game/upgrades";
 import type { SlotInfo, World } from "../game/world";
-import type { ClientToHost, HostToClient, OverInfo, Wire } from "./gameProtocol";
+import type { ClientToHost, ForgeSrc, HostToClient, OverInfo, Wire } from "./gameProtocol";
 import type { RosterEntry } from "./relayProtocol";
 import { captureSnapshot, encodeSnapshot } from "./snapshot";
 
@@ -30,6 +30,7 @@ export class HostSession {
   /** Robot classes announced by joiners, by slot. */
   private readonly classes = new Map<number, ArchetypeId>();
   overInfo: OverInfo | null = null;
+  private forge: { src: ForgeSrc; name: string } | null = null;
 
   constructor(
     private readonly world: World,
@@ -50,6 +51,13 @@ export class HostSession {
     this.open = null;
     this.overInfo = null;
     this.sendGame({ k: "start", slots });
+    if (this.forge) this.sendGame({ k: "forge", ...this.forge });
+  }
+
+  /** The host's Forge boss changed: tell everyone (and repeat it at each run start). */
+  setForge(src: ForgeSrc, name: string): void {
+    this.forge = { src, name };
+    this.sendGame({ k: "forge", src, name });
   }
 
   /** Everyone back to the lobby after a run (the relay unlocks joins again). */

@@ -3,7 +3,7 @@ import type { Effect } from "../game/effects";
 import type { PlayerInput } from "../game/types";
 import type { UpgradeCard } from "../game/upgrades";
 import type { World } from "../game/world";
-import type { ClientToHost, HostToClient, OverInfo, Wire } from "./gameProtocol";
+import type { ClientToHost, ForgeSrc, HostToClient, OverInfo, Wire } from "./gameProtocol";
 import { applySnapshot, decodeSnapshot, type Snapshot } from "./snapshot";
 
 interface Buffered {
@@ -28,6 +28,8 @@ export class ClientSession {
   overInfo: OverInfo | null = null;
   /** A snapshot couldn't be read: the host is on a different build of the game. */
   versionMismatch = false;
+  /** The host shared its Forge boss; the game loads the model and names the boss. */
+  onForge: ((src: ForgeSrc, name: string) => void) | null = null;
 
   constructor(
     private readonly world: World,
@@ -48,6 +50,8 @@ export class ClientSession {
       this.overInfo = null;
       this.running = true;
       this.lastSnapAt = this.now();
+    } else if (m.k === "forge") {
+      this.onForge?.(m.src, m.name);
     } else if (m.k === "cards") {
       this._cards = { round: m.round, cards: m.cards };
     } else if (m.k === "over") {
