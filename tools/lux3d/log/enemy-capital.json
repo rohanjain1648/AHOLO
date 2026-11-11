@@ -14,5 +14,19 @@
   "trisInGame": 9410,
   "clips": [],
   "rawBytes": 14362752,
-  "finishedAt": "2026-11-11T04:36:58.566Z"
+  "finishedAt": "2026-11-11T04:36:58.566Z",
+  "partSplit": {
+    "task": 6371452,
+    "ms": 11029,
+    "parts": [
+      {
+        "name": "hull",
+        "tris": 8741
+      },
+      {
+        "name": "bridge",
+        "tris": 669
+      }
+    ]
+  }
 }

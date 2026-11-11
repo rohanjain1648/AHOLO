@@ -29,6 +29,8 @@ export interface ModelEntry {
   lazy: boolean;
   /** Lit by its own texture instead of tinted (Forge bosses: Turbo output is dark, and a boss must read). */
   selfLit?: boolean;
+  /** Name of a Lux3D part-split node that blows off in the boss's second stage. */
+  breakPart?: string;
   /** Informational, from the pipeline: prompt and triangle count. */
   prompt?: string;
   tris?: number;
@@ -73,6 +75,7 @@ function parseEntry(raw: unknown): ModelEntry | null {
     heightMul: num(raw.heightMul, 1) > 0 ? num(raw.heightMul, 1) : 1,
     fit: raw.fit === "size" ? "size" : "height",
     lazy: raw.lazy === true,
+    breakPart: typeof raw.breakPart === "string" && raw.breakPart ? raw.breakPart : undefined,
     prompt: typeof raw.prompt === "string" ? raw.prompt : undefined,
     tris: typeof raw.tris === "number" ? raw.tris : undefined,
   };

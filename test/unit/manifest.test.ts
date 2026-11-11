@@ -37,6 +37,11 @@ describe("parseManifest", () => {
     expect(m.models.c.fit).toBe("height");
   });
 
+  it("keeps a breakable part name", () => {
+    const m = parseManifest({ version: 1, models: { c: { file: "gen/c.glb", kind: "rigid", breakPart: "bridge" } } });
+    expect(m.models.c.breakPart).toBe("bridge");
+  });
+
   it("keeps the lazy flag (loaded on demand, not at boot)", () => {
     const m = parseManifest({
       version: 1,

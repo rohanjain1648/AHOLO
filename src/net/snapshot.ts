@@ -40,6 +40,8 @@ export interface EnemySnap {
   kind: EnemyKind;
   /** Wears the host's Forge model. */
   forged: boolean;
+  /** Capital ship in stage two (bridge gone). */
+  enraged: boolean;
   x: number;
   y: number;
   flash: number;
@@ -89,7 +91,8 @@ const KINDS: EnemyKind[] = [
   "interceptor", "bomber", "kamikaze", "asteroid", "capital",
 ];
 const PHASE_IDS: Phase[] = ["surface", "launch", "orbit", "descent"];
-const VERSION = 5;
+const VERSION = 6;
+const flags = (f: number) => ({ forged: (f & 1) !== 0, enraged: (f & 2) !== 0 });
 /** A pooled bullet/gem that moved further than this between snapshots is a recycled slot, not motion. */
 const REUSE_JUMP = 150;
 
@@ -103,7 +106,7 @@ export function captureSnapshot(w: World, seq: number, waitingMask: number, effe
   };
   const enemies: EnemySnap[] = [];
   w.enemies.forEach((e, i) => {
-    if (!e.dead) enemies.push({ i, kind: e.kind, forged: !!e.forged, x: e.x, y: e.y, flash: e.flash, spawnT: e.spawnT, punchT: e.punchT });
+    if (!e.dead) enemies.push({ i, kind: e.kind, forged: !!e.forged, enraged: !!e.enraged, x: e.x, y: e.y, flash: e.flash, spawnT: e.spawnT, punchT: e.punchT });
   });
   const gems: GemSnap[] = [];
   w.gems.forEach((g, i) => {
@@ -206,7 +209,7 @@ export function encodeSnapshot(s: Snapshot): Uint8Array {
   for (const e of s.enemies) {
     w.u16(e.i);
     w.u8(KINDS.indexOf(e.kind));
-    w.u8(e.forged ? 1 : 0);
+    w.u8((e.forged ? 1 : 0) | (e.enraged ? 2 : 0));
     w.f32(e.x);
     w.f32(e.y);
     w.f32(e.flash);
@@ -295,7 +298,7 @@ export function decodeSnapshot(buf: ArrayBuffer | Uint8Array): Snapshot {
 
   for (let n = r.u16(); n > 0; n--) {
     s.enemies.push({
-      i: r.u16(), kind: KINDS[r.u8()], forged: r.u8() === 1,
+      i: r.u16(), kind: KINDS[r.u8()], ...flags(r.u8()),
       x: r.f32(), y: r.f32(), flash: r.f32(), spawnT: r.f32(), punchT: r.f32(),
     });
   }
@@ -397,6 +400,7 @@ export function applySnapshot(w: World, a: Snapshot, b: Snapshot, t: number, loc
     e.kind = eb.kind;
     e.isBoss = isBossKind(eb.kind);
     e.forged = eb.forged;
+    e.enraged = eb.enraged;
     e.x = lerp(from.x, eb.x, t);
     e.y = lerp(from.y, eb.y, t);
     e.flash = eb.flash;

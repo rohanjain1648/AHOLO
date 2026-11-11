@@ -300,6 +300,24 @@ function createGenerated(m: LoadedModel): RobotHandle {
   let wanted: ClipName = "Idle";
   let topple = 0;
 
+  // Breakable part (Lux3D part split): flung up and away, tumbling, then hidden.
+  const part = m.entry.breakPart ? inner.getObjectByName(m.entry.breakPart) ?? null : null;
+  const partHome = part ? { p: part.position.clone(), q: part.quaternion.clone() } : null;
+  let broken = false;
+  let breakT = 0;
+  const fly = new THREE.Vector3();
+  const spin = new THREE.Vector3();
+  const stepPart = (dt: number) => {
+    if (!part || !broken || !part.visible) return;
+    breakT += dt;
+    fly.y -= 1.6 * dt; // gentle arc
+    part.position.addScaledVector(fly, dt);
+    part.rotation.x += spin.x * dt;
+    part.rotation.y += spin.y * dt;
+    part.rotation.z += spin.z * dt;
+    if (breakT > 1.8) part.visible = false;
+  };
+
   return {
     root,
     mixer,
@@ -328,7 +346,21 @@ function createGenerated(m: LoadedModel): RobotHandle {
       speed = mul;
       if (current) current.timeScale = mul;
     },
+    setBroken(on) {
+      if (!part || !partHome || on === broken) return;
+      broken = on;
+      breakT = 0;
+      if (on) {
+        fly.set((Math.random() - 0.5) * 0.8, 1.4, (Math.random() - 0.5) * 0.8);
+        spin.set((Math.random() - 0.5) * 6, (Math.random() - 0.5) * 6, (Math.random() - 0.5) * 6);
+      } else {
+        part.position.copy(partHome.p);
+        part.quaternion.copy(partHome.q);
+        part.visible = true;
+      }
+    },
     update(dt) {
+      stepPart(dt);
       if (skinned) {
         mixer.update(dt);
         return;

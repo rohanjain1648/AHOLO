@@ -83,6 +83,49 @@ describe("surface -> launch -> orbit -> descent loop", () => {
   });
 });
 
+describe("capital ship two-stage fight", () => {
+  it("loses its bridge and enrages once, at half health", () => {
+    const w = new World(silentAudio());
+    w.setPhase("orbit");
+    const p = w.player;
+    const cap = w.spawnEnemy("capital", p.x + 140, p.y);
+    cap.speed = 0;
+    expect(cap.enraged).toBeFalsy();
+    cap.hp = cap.maxHp * 0.5 + 1;
+    w.player.maxHp = w.player.hp = 1e9;
+    for (let i = 0; i < 120 && !cap.enraged; i++) w.update(1 / 60, [FIRE_RIGHT]);
+    expect(cap.enraged).toBe(true);
+    expect(cap.dead).toBe(false);
+  });
+
+  it("fires faster once enraged", () => {
+    const shots = (enraged: boolean) => {
+      const w = new World(silentAudio());
+      w.setPhase("orbit");
+      w.player.maxHp = w.player.hp = 1e9;
+      const cap = w.spawnEnemy("capital", w.player.x + 300, w.player.y);
+      cap.speed = 0;
+      cap.enraged = enraged;
+      (w as unknown as { director: { update: () => void } }).director.update = () => {};
+      let n = 0;
+      for (let i = 0; i < 60 * 10; i++) {
+        w.update(1 / 60, [IDLE_INPUT]);
+        n += w.enemyBullets.filter((b) => !b.dead && b.life > 4.98).length;
+      }
+      return n;
+    };
+    expect(shots(true)).toBeGreaterThan(shots(false) * 1.4);
+  });
+
+  it("the enraged flag survives the snapshot", () => {
+    const w = new World(silentAudio());
+    const cap = w.spawnEnemy("capital", 100, 0);
+    cap.enraged = true;
+    const s = decodeSnapshot(encodeSnapshot(captureSnapshot(w, 1, 0, [])));
+    expect(s.enemies[0].enraged).toBe(true);
+  });
+});
+
 describe("Forge bosses", () => {
   it("bosses spawned after a forge is ready wear it and carry its name; others do not", () => {
     const w = new World(silentAudio());

@@ -26,6 +26,8 @@ export interface RobotHandle {
   setTint(hex: number): void;
   /** Hit flash: white while on. */
   setFlash(on: boolean): void;
+  /** Boss second stage: fling the model's breakable part away (false restores it). Optional. */
+  setBroken?(on: boolean): void;
   setSpeed(mul: number): void;
   update(dt: number): void;
   dispose(): void;

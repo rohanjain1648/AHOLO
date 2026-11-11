@@ -271,8 +271,11 @@ function startGame(): void {
     const jump = new URLSearchParams(location.search).get("phase");
     if (jump === "launch" || jump === "orbit") world.setPhase(jump);
     // ?boss=now: the phase's boss spawns immediately (Forge testing, demo capture).
-    if (new URLSearchParams(location.search).get("boss") === "now") {
-      world.spawnEnemy(world.phase === "orbit" ? "capital" : "boss", world.player.x + 520, world.player.y - 120);
+    const q = new URLSearchParams(location.search);
+    if (q.get("boss") === "now") {
+      const b = world.spawnEnemy(world.phase === "orbit" ? "capital" : "boss", world.player.x + 520, world.player.y - 120);
+      // &bridge=off: start the capital ship in stage two (bridge blown off).
+      if (q.get("bridge") === "off") b.enraged = true;
     }
   }
   enterRun();

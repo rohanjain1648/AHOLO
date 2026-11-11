@@ -37,6 +37,8 @@ export interface Enemy {
   punchT: number;
   /** A boss wearing the player's Forge model (visual + name only; stats are unchanged). */
   forged?: boolean;
+  /** Capital ship below half health: its bridge is blown off and it fires faster. */
+  enraged?: boolean;
 }
 
 export interface Bullet {

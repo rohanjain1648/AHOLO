@@ -233,6 +233,7 @@ export class WorldView {
       h.setSpeed(spawnIn ? 1 : e.animSpeed);
       h.setTint(hexToNum(e.color));
       h.setFlash(e.flash > 0);
+      h.setBroken?.(!!e.enraged);
       h.update(dt);
     }
 

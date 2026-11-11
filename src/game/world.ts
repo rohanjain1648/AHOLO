@@ -260,6 +260,7 @@ export class World {
       e.vy = Math.sin(a) * e.speed;
     }
     e.forged = isBossKind(kind) && this.forgeName !== null;
+    e.enraged = false;
     if (isBossKind(kind)) {
       this.boss = e;
       this.emit({ k: "sfx", n: "bossWarn", slot: -1 });
@@ -606,7 +607,7 @@ export class World {
         e.shootCd -= dt;
         const d = dist(e.x, e.y, p.x, p.y);
         if (e.shootCd <= 0 && d < sc.range) {
-          e.shootCd = sc.cooldown;
+          e.shootCd = sc.cooldown * (e.enraged ? 0.55 : 1);
           if (e.isBoss) {
             // Boss fires a spread.
             for (let k = -2; k <= 2; k++) this.fireEnemyBullet(e, a + k * 0.22, sc.bulletSpeed, sc.bulletDmg);
@@ -762,6 +763,15 @@ export class World {
     if (crit) this.emit({ k: "text", x: hx, y: hy - 6, text: `${Math.round(dmg)}`, color: "#fff2a8", size: 20 });
     if (e.hp <= 0) this.killEnemy(e, owner);
     else this.emit({ k: "sfx", n: "hit", slot: -1 });
+    if (!e.dead && e.kind === "capital" && !e.enraged && e.hp < e.maxHp * 0.5) {
+      // Stage two: the bridge blows off (the renderer flings the Lux3D-split part away).
+      e.enraged = true;
+      this.emit({ k: "spark", x: e.x, y: e.y, color: "#ffb44d", count: 50, speed: 420, size: 5 });
+      this.emit({ k: "text", x: e.x, y: e.y - 40, text: "BRIDGE DESTROYED", color: "#ffb44d", size: 26 });
+      this.emit({ k: "sfx", n: "bigKill", slot: -1 });
+      this.emit({ k: "trauma", v: 0.7, slot: -1 });
+      this.emit({ k: "flash", color: "255,180,90", i: 0.5, slot: -1 });
+    }
   }
 
   private killEnemy(e: Enemy, killer: Player): void {
