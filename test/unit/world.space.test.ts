@@ -83,6 +83,30 @@ describe("surface -> launch -> orbit -> descent loop", () => {
   });
 });
 
+describe("Forge bosses", () => {
+  it("bosses spawned after a forge is ready wear it and carry its name; others do not", () => {
+    const w = new World(silentAudio());
+    const before = w.spawnEnemy("boss", 300, 0);
+    expect(before.forged).toBeFalsy();
+    expect(w.bossLabel).toBe("WARDEN");
+
+    w.forgeName = "a mechanical scorpion";
+    const grunt = w.spawnEnemy("grunt", 0, 300);
+    expect(grunt.forged).toBeFalsy();
+    before.dead = true;
+    const boss = w.spawnEnemy("capital", -300, 0);
+    expect(boss.forged).toBe(true);
+    expect(w.bossLabel).toBe("A MECHANICAL SCORPION");
+  });
+
+  it("an unforged capital ship is labelled as such", () => {
+    const w = new World(silentAudio());
+    w.setPhase("orbit");
+    w.spawnEnemy("capital", 300, 0);
+    expect(w.bossLabel).toBe("CAPITAL SHIP");
+  });
+});
+
 describe("spaceBlend", () => {
   it("is 0 on the surface, 1 in orbit, and eases monotonically through launch and descent", () => {
     expect(spaceBlend("surface", 99)).toBe(0);

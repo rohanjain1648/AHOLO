@@ -85,6 +85,8 @@ export class World {
   flashColor = "255,255,255";
   /** Co-op client: the boss bar comes from the host's snapshot, not a local boss. */
   bossHpOverride: number | null = null;
+  /** The player's Forge prompt once its model has loaded; the next boss wears it. Survives restarts. */
+  forgeName: string | null = null;
 
   /** Watching without a robot: `localSlot` is just whoever the camera follows. */
   spectating = false;
@@ -257,6 +259,7 @@ export class World {
       e.vx = Math.cos(a) * e.speed;
       e.vy = Math.sin(a) * e.speed;
     }
+    e.forged = isBossKind(kind) && this.forgeName !== null;
     if (isBossKind(kind)) {
       this.boss = e;
       this.emit({ k: "sfx", n: "bossWarn", slot: -1 });
@@ -962,6 +965,14 @@ export class World {
 
   get stats(): RunStats {
     return { time: this.time, kills: this.kills, level: this.level };
+  }
+
+  /** Name over the boss bar: the Forge prompt when this boss wears it. */
+  get bossLabel(): string {
+    const b = this.boss;
+    if (b && b.forged && this.forgeName) return this.forgeName.toUpperCase();
+    if (b ? b.kind === "capital" : this.phase === "orbit") return "CAPITAL SHIP";
+    return "WARDEN";
   }
 
   get bossHpFraction(): number | null {

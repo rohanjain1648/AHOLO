@@ -92,7 +92,8 @@ export function drawHud(
     const bw = Math.min(420, w * 0.6);
     ctx.font = "800 12px 'Segoe UI', system-ui, sans-serif";
     ctx.fillStyle = "#ffd27a";
-    ctx.fillText("◆ WARDEN ◆", w / 2, 74);
+    const label = world.bossLabel;
+    ctx.fillText(`◆ ${label.length > 40 ? label.slice(0, 39) + "…" : label} ◆`, w / 2, 74);
     bar(ctx, w / 2 - bw / 2, 90, bw, 12, bossFrac, "#ffcf5a", "rgba(255,80,80,0.15)");
   }
 

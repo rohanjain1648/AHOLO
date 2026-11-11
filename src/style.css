@@ -113,6 +113,31 @@ body::after {
   outline-offset: 2px;
 }
 
+/* Forge prompt: a sentence, not a 4-letter code. */
+.forge-card {
+  width: min(460px, 100%);
+  border-color: rgba(255, 180, 77, 0.55);
+}
+.forge-card label {
+  color: #ffb44d;
+}
+.forge-card input {
+  font: 600 17px "Segoe UI", system-ui, sans-serif;
+  letter-spacing: normal;
+  text-transform: none;
+  text-align: left;
+  padding: 10px 12px;
+}
+.forge-card input:focus {
+  outline-color: #ffb44d;
+}
+.forge-hint {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.4;
+  color: rgba(230, 244, 255, 0.7);
+}
+
 .code-error {
   min-height: 1.2em;
   font-size: 13px;

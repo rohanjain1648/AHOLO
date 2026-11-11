@@ -35,6 +35,8 @@ export interface Enemy {
   spawnT: number; // time alive, for spawn-in animation
   /** Countdown after landing a contact hit; the app plays the Punch clip while > 0. */
   punchT: number;
+  /** A boss wearing the player's Forge model (visual + name only; stats are unchanged). */
+  forged?: boolean;
 }
 
 export interface Bullet {

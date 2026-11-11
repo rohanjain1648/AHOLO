@@ -65,6 +65,8 @@ export class WorldView {
   readonly floatLabels: FloatLabel[] = [];
   /** World-space scale applied to every robot instance; calibrated once the model loads. */
   robotBaseScale = 60;
+  /** Model role of the current Forge boss, once loaded; forged bosses use it. */
+  forgeRole: string | null = null;
 
   constructor(
     private readonly scene: THREE.Scene,
@@ -210,7 +212,7 @@ export class WorldView {
         if (slot) slot.h.root.visible = false;
         continue;
       }
-      const h = this.enemyModel(i, roleForEnemy(e.kind));
+      const h = this.enemyModel(i, e.forged && this.forgeRole ? this.forgeRole : roleForEnemy(e.kind));
       h.root.visible = true;
       h.root.position.set(e.x, 0, e.y);
       if (e.kind === "asteroid") {

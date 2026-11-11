@@ -95,7 +95,7 @@ const titleScale = (h: number): number => Math.min(1, Math.max(0.6, h / 760));
  * out pre-scale and mapped through the same transform `drawTitle` draws with,
  * so hit-testing matches what's on screen at any viewport height.
  */
-export function titleButtonRects(w: number, h: number): { solo: Rect; host: Rect; join: Rect } {
+export function titleButtonRects(w: number, h: number): { solo: Rect; host: Rect; join: Rect; forge: Rect } {
   const play = titlePlayButtonRect(w, h);
   const panelTop = titlePanelRect(w, h).y;
   const s = titleScale(h);
@@ -112,7 +112,15 @@ export function titleButtonRects(w: number, h: number): { solo: Rect; host: Rect
     solo: map(play),
     host: map({ x: play.x, y: rowY, w: half, h: 48 }),
     join: map({ x: play.x + half + gap, y: rowY, w: half, h: 48 }),
+    forge: map({ x: play.x, y: rowY + 48 + gap, w: play.w, h: 44 }),
   };
+}
+
+/** What the title shows for Forge: hidden when off, a button plus an optional status line otherwise. */
+export interface TitleForge {
+  /** False while a forge is running (the button is shown dimmed). */
+  enabled: boolean;
+  status: string | null;
 }
 
 export type CoopAvailability = "ready" | "waking" | "unavailable";
@@ -227,6 +235,7 @@ export function drawTitle(
   best: RunStats | null,
   muted: boolean,
   coop: CoopAvailability = "unavailable",
+  forge: TitleForge | null = null,
 ): void {
   dim(ctx, w, h, 0.55);
   neonTitle(ctx, "NOVA SWARM", w / 2, h * 0.28, Math.min(72, w * 0.11), time, w * 0.92);
@@ -336,6 +345,20 @@ export function drawTitle(
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     ctx.fillText(coop === "waking" ? "Waking co-op server…" : "Co-op unavailable", row.x + row.w / 2, row.y + row.h / 2);
+  }
+
+  if (forge) {
+    ctx.save();
+    if (!forge.enabled) ctx.globalAlpha = 0.5;
+    drawButton(ctx, rects.forge, "⚒  FORGE A BOSS", time, "#ffb44d", fontPx);
+    ctx.restore();
+    if (forge.status) {
+      ctx.fillStyle = "rgba(255,210,150,0.9)";
+      const size = fitFontSize(ctx, forge.status, 600, w * 0.92, Math.round(14 * panelScale));
+      ctx.font = `600 ${size}px 'Segoe UI', system-ui, sans-serif`;
+      ctx.textAlign = "center";
+      ctx.fillText(forge.status, w / 2, rects.forge.y + rects.forge.h + 18);
+    }
   }
 
   // Mute toggle

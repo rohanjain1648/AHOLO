@@ -89,6 +89,25 @@ export class ModelLibrary {
     for (const m of this.models.values()) normalize(m, refHeight);
   }
 
+  /**
+   * Load a model while the game runs (a Forge boss). Rigid and sized by its
+   * largest dimension, since a generated creature can be any shape.
+   */
+  async loadRuntime(role: string, url: string, entry: Partial<ModelEntry> = {}): Promise<void> {
+    const loader = new GLTFLoader();
+    loader.setMeshoptDecoder(MeshoptDecoder);
+    const gltf = await loader.loadAsync(url);
+    const m: LoadedModel = {
+      entry: { file: "runtime.glb", kind: "rigid", yaw: 0, heightMul: 1, fit: "size", ...entry },
+      gltf,
+      norm: 1,
+      offset: new THREE.Vector3(),
+      ref: 1,
+    };
+    normalize(m, this.fallback.naturalHeight);
+    this.models.set(role, m);
+  }
+
   get naturalHeight(): number {
     return this.fallback.naturalHeight;
   }

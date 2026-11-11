@@ -35,7 +35,8 @@ import {
   lobbyButtonRects,
   randomCallsign,
 } from "./ui/lobby";
-import { askRoomCode } from "./ui/codeInput";
+import { askForgePrompt, askRoomCode } from "./ui/codeInput";
+import { ForgeClient, forgeStatusLine } from "./forge/forgeClient";
 import { RelayClient, relayHttpUrl, relayUrl, wakeRelay } from "./net/relayClient";
 import { ChatController, type ChatRole } from "./chat/chatController";
 import { NexconnTransport } from "./chat/nexconnTransport";
@@ -98,9 +99,36 @@ let lastChatUiT = 0;
 /** Spectators: the slot the camera follows. */
 let followSlot = 0;
 
+// Forge: a typed boss idea becomes a Lux3D model via the relay (which holds the key).
+const forge = new ForgeClient(RELAY_URL ? relayHttpUrl(RELAY_URL) : null);
+let forgeCount = 0;
+forge.onReady = (url, prompt) => {
+  const role = `forge.boss.${++forgeCount}`;
+  models
+    .loadRuntime(role, url)
+    .then(() => {
+      if (worldView) worldView.forgeRole = role;
+      world.forgeName = prompt;
+      showToast(`⚒ “${prompt}” is forged. It comes with the next boss.`);
+    })
+    .catch((err) => {
+      console.error("[forge] model failed to load", err);
+      showToast("⚒ The forged model didn't load. Try another idea");
+    });
+};
+
 if (RELAY_URL) {
   void wakeRelay(RELAY_URL).then((ok) => {
     coop = ok ? "ready" : "unavailable";
+    if (ok) void forge.checkAvailable();
+  });
+}
+
+function startForge(): void {
+  forge.reset();
+  if (forge.busy) return;
+  void askForgePrompt().then((prompt) => {
+    if (prompt) void forge.start(prompt);
   });
 }
 
@@ -502,6 +530,11 @@ function handleMenu(): void {
     input.consumeConfirm();
     return;
   }
+  if (click && forge.state.kind !== "off" && pointInRect(click.x, click.y, titleButtonRects(W, H).forge)) {
+    input.consumeConfirm();
+    startForge();
+    return;
+  }
   if (click && coop !== "ready") {
     // The dimmed co-op row is a disabled control: tapping it must not start solo.
     const r = titleButtonRects(W, H);
@@ -750,6 +783,7 @@ function render(): void {
   if (mode === "spectator") world.localSlot = followSlot;
   if ((mode === "client" || mode === "spectator") && clientSession?.isRunning) clientSession.frame(rdt);
   updateChatUi();
+  forge.tick();
   if (clientSession?.versionMismatch) leaveCoop("Your friend is on a different version — refresh or update the game");
 
   // Sync the 3D scene from World's data + advance camera/atmosphere on the
@@ -765,7 +799,10 @@ function render(): void {
   drawFloatLabels(hudCtx, worldView.floatLabels, scene3d.camera, W, H);
 
   if (state === "menu") {
-    drawTitle(hudCtx, W, H, t, best, audio.muted, joining ? "waking" : coop);
+    drawTitle(
+      hudCtx, W, H, t, best, audio.muted, joining ? "waking" : coop,
+      forge.state.kind === "off" ? null : { enabled: !forge.busy, status: forgeStatusLine(forge.state) },
+    );
     drawToast();
     return;
   }
@@ -778,6 +815,17 @@ function render(): void {
   drawHud(hudCtx, world, audio.muted, W, H, scene3d.camera);
   drawScreenFlash(t);
   if (state === "playing") drawPhaseCallout();
+  if (state === "playing" && (forge.busy || forge.state.kind === "failed")) {
+    const line = forgeStatusLine(forge.state);
+    if (line) {
+      hudCtx.save();
+      hudCtx.textAlign = "center";
+      hudCtx.font = "600 13px 'Segoe UI', system-ui, sans-serif";
+      hudCtx.fillStyle = "rgba(255,210,150,0.85)";
+      hudCtx.fillText(line, W / 2, H - 18);
+      hudCtx.restore();
+    }
+  }
 
   const huddleNames = mode === "solo" ? [] : waitingNames();
   if (state === "levelup") {

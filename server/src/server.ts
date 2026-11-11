@@ -2,6 +2,7 @@ import { createServer, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import { WebSocketServer, type WebSocket } from "ws";
 import type { ChatBackend } from "./chatBackend";
+import type { Forge } from "./forge";
 import { RoomManager, type Conn } from "./rooms";
 
 /** Browsers keep a chat identity for good, so a handful of new ones per minute is generous. */
@@ -12,6 +13,26 @@ export interface RelayOptions {
   heartbeatMs?: number;
   /** Nexconn chat; leave unset and the game still runs, without chat. */
   chat?: { backend: ChatBackend & { issueToken(): Promise<{ userId: string; token: string }> }; appKey: string } | null;
+  /** Lux3D boss forging; unset when there is no LUX3D_API_KEY, and the game hides the feature. */
+  forge?: Forge | null;
+}
+
+const MAX_BODY = 2048;
+
+function readBody(req: import("node:http").IncomingMessage): Promise<string> {
+  return new Promise((resolve, reject) => {
+    let size = 0;
+    const chunks: Buffer[] = [];
+    req.on("data", (c: Buffer) => {
+      size += c.length;
+      if (size > MAX_BODY) {
+        reject(new Error("too_large"));
+        req.destroy();
+      } else chunks.push(c);
+    });
+    req.on("end", () => resolve(Buffer.concat(chunks).toString("utf8")));
+    req.on("error", reject);
+  });
 }
 
 export interface RelayServer {
@@ -36,6 +57,44 @@ export function createRelayServer(port: number, opts: RelayOptions = {}): Promis
       res.writeHead(200, { "Content-Type": "text/plain", ...cors });
       res.end("ok");
       return;
+    }
+    if (req.url === "/forge" || req.url?.startsWith("/forge/")) {
+      const json = (status: number, body: unknown): void => {
+        res.writeHead(status, { "Content-Type": "application/json", ...cors });
+        res.end(JSON.stringify(body));
+      };
+      if (req.method === "OPTIONS") {
+        res.writeHead(204, { ...cors, "Access-Control-Allow-Methods": "GET, POST", "Access-Control-Allow-Headers": "Content-Type" });
+        res.end();
+        return;
+      }
+      const forge = opts.forge;
+      if (req.url === "/forge" && req.method === "GET") return json(200, { on: !!forge });
+      if (!forge) return json(200, { off: true });
+      if (req.url === "/forge" && req.method === "POST") {
+        const ip = String(req.headers["x-forwarded-for"] ?? req.socket.remoteAddress).split(",")[0].trim();
+        readBody(req)
+          .then((body) => {
+            let prompt: unknown;
+            try {
+              prompt = (JSON.parse(body) as { prompt?: unknown }).prompt;
+            } catch {
+              prompt = null;
+            }
+            return forge.request(ip, prompt);
+          })
+          .then(
+            (r) => (r.ok ? json(200, { id: r.id }) : json(r.error === "api_error" ? 502 : r.error === "bad_prompt" ? 400 : 429, { error: r.error })),
+            () => json(413, { error: "too_large" }),
+          );
+        return;
+      }
+      const id = decodeURIComponent(req.url.slice("/forge/".length));
+      if (req.method === "GET" && /^[a-z0-9]{1,24}$/.test(id)) {
+        forge.status(id).then((s) => json(200, s));
+        return;
+      }
+      return json(404, { error: "not_found" });
     }
     if (req.url === "/chat/session") {
       if (req.method === "OPTIONS") {

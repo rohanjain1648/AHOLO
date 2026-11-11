@@ -178,6 +178,7 @@ async function processAsset(api, spec) {
         ...(clips ? { clips } : {}),
         yaw: spec.yaw ?? 0,
         heightMul: spec.heightMul ?? 1,
+        fit: spec.fit ?? "height",
         prompt: spec.prompt,
         tris: r.trisAfter,
       };
