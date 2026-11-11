@@ -217,3 +217,42 @@ describe("snapshot", () => {
     expect([s.players[0].chain, s.players[0].lance]).toEqual([3, 2]);
   });
 });
+
+describe("splitters", () => {
+  it("split into two fast enemies even when their own slot is the first free one", () => {
+    const w = quietWorld();
+    const s = w.spawnEnemy("splitter", 200, 0); // the only enemy: its slot is the first free one when it dies
+    s.hp = 1;
+    expect(() => (w as unknown as { killEnemy: (e: Enemy, p: unknown) => void }).killEnemy(s, w.player)).not.toThrow();
+    const alive = w.enemies.filter((e) => !e.dead);
+    expect(alive).toHaveLength(2);
+    expect(alive.every((e) => e.kind === "fast")).toBe(true);
+    for (const e of alive) expect(Math.hypot(e.x - 200, e.y)).toBeLessThan(30);
+  });
+});
+
+describe("boss rewards", () => {
+  it("a boss kill heals every living player by a third of max HP, never past max", () => {
+    const w = quietWorld();
+    w.reset([{ slot: 0, name: "A" }, { slot: 1, name: "B" }]);
+    const [a, b] = w.players;
+    a.hp = 20;
+    b.hp = b.maxHp - 5;
+    const boss = w.spawnEnemy("boss", a.x + 300, a.y);
+    boss.hp = 1;
+    (w as unknown as { killEnemy: (e: Enemy, p: unknown) => void }).killEnemy(boss, a);
+    expect(a.hp).toBeCloseTo(20 + a.maxHp * 0.35, 5);
+    expect(b.hp).toBe(b.maxHp);
+  });
+
+  it("a downed player is not revived by it", () => {
+    const w = quietWorld();
+    w.reset([{ slot: 0, name: "A" }, { slot: 1, name: "B" }]);
+    w.players[1].downed = true;
+    w.players[1].hp = 0;
+    const boss = w.spawnEnemy("boss", 300, 0);
+    boss.hp = 1;
+    (w as unknown as { killEnemy: (e: Enemy, p: unknown) => void }).killEnemy(boss, w.players[0]);
+    expect(w.players[1].hp).toBe(0);
+  });
+});

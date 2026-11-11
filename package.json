@@ -14,7 +14,8 @@
     "smoke:coop": "node test/coop-smoke.mjs",
     "smoke:chat": "node test/chat-smoke.mjs",
     "assets": "node tools/lux3d/generate.mjs",
-    "capture": "node test/capture.mjs"
+    "capture": "node test/capture.mjs",
+    "balance": "server/node_modules/.bin/tsx tools/balance.ts"
   },
   "devDependencies": {
     "@gltf-transform/core": "^4.5.1",

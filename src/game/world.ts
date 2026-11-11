@@ -243,6 +243,15 @@ export class World {
     return g;
   }
 
+  /**
+   * The clock enemy strength and spawn rate follow. On the surface it's run time. In orbit it restarts
+   * near the 1:15 mark and climbs with time in orbit (never past run time), so launching at 5:00 doesn't
+   * throw a 5:00-strength fleet at a fresh ship. Later loops are toughened by `hpMul` instead.
+   */
+  get difficultyT(): number {
+    return this.phase === "orbit" ? Math.min(this.time, PHASES.orbitStartDifficulty + this.phaseT) : this.time;
+  }
+
   /** Enemy HP multiplier for the current squad size (1 in solo) and completed loops. */
   private get hpMul(): number {
     return (1 + COOP.hpPerExtra * (this.activeCount - 1)) * PHASES.loopHpMul ** this.loop;
@@ -251,7 +260,7 @@ export class World {
   /** Spawn one enemy now. Public for the crowd/Forge features and tests. */
   spawnEnemy(kind: EnemyKind, x: number, y: number): Enemy {
     const e = this.acquireEnemy();
-    initEnemy(e, kind, x, y, this.time, this.hpMul);
+    initEnemy(e, kind, x, y, this.difficultyT, this.hpMul);
     if (kind === "asteroid") {
       // Rocks don't chase: they cross the field in a straight line, roughly toward the squad.
       const p = this.nearestLiving(x, y) ?? this.player;
@@ -402,7 +411,7 @@ export class World {
     if (this.phase === "surface" || this.phase === "orbit") {
       const centre = this.spawnCentre();
       this.director.update(
-        dt, this.time, centre.x, centre.y, this.viewRadius, this.aliveEnemyCount(), this.rng, this.spawnEnemyAt,
+        dt, this.difficultyT, centre.x, centre.y, this.viewRadius, this.aliveEnemyCount(), this.rng, this.spawnEnemyAt,
         1 + COOP.spawnPerExtra * (this.activeCount - 1),
       );
     }
@@ -646,10 +655,11 @@ export class World {
         e.shootCd -= dt;
         const d = dist(e.x, e.y, p.x, p.y);
         if (e.shootCd <= 0 && d < sc.range) {
-          e.shootCd = sc.cooldown * (e.enraged ? 0.55 : 1);
+          e.shootCd = sc.cooldown * (e.enraged ? 0.65 : 1);
           if (e.isBoss) {
-            // Boss fires a spread.
-            for (let k = -2; k <= 2; k++) this.fireEnemyBullet(e, a + k * 0.22, sc.bulletSpeed, sc.bulletDmg);
+            // Boss fires a fanned volley.
+            const n = sc.volley ?? 5;
+            for (let i = 0; i < n; i++) this.fireEnemyBullet(e, a + (i - (n - 1) / 2) * 0.26, sc.bulletSpeed, sc.bulletDmg);
           } else {
             this.fireEnemyBullet(e, a, sc.bulletSpeed, sc.bulletDmg);
           }
@@ -770,9 +780,9 @@ export class World {
   }
 
   /** A line of lingering sparks from (x1, y1) to (x2, y2): how bolts and beams are drawn. */
-  private bolt(x1: number, y1: number, x2: number, y2: number, color: string, size: number, jitter: number): void {
+  private bolt(x1: number, y1: number, x2: number, y2: number, color: string, size: number, jitter: number, spacing = 22): void {
     const l = dist(x1, y1, x2, y2);
-    const n = Math.max(2, Math.floor(l / 22));
+    const n = Math.max(2, Math.floor(l / spacing));
     const nx = l > 0 ? -(y2 - y1) / l : 0;
     const ny = l > 0 ? (x2 - x1) / l : 0;
     for (let i = 0; i <= n; i++) {
@@ -789,7 +799,7 @@ export class World {
     let target: Enemy | null = first;
     let dmg = p.chainDamage;
     for (let i = 0; i < p.chainTargets && target; i++) {
-      this.bolt(fromX, fromY, target.x, target.y, PALETTE.chain, 3.4, 9);
+      this.bolt(fromX, fromY, target.x, target.y, PALETTE.chain, 2.6, 9, 13);
       hit.add(target);
       fromX = target.x;
       fromY = target.y;
@@ -819,7 +829,7 @@ export class World {
       e.kbx += cos * 140;
       e.kby += sin * 140;
     }
-    this.bolt(p.x, p.y, p.x + cos * length, p.y + sin * length, PALETTE.lance, 5, 3);
+    this.bolt(p.x, p.y, p.x + cos * length, p.y + sin * length, PALETTE.lance, 3, 2, 10);
     this.emit({ k: "spark", x: p.x + cos * 24, y: p.y + sin * 24, color: PALETTE.lance, count: 10, speed: 280, size: 4 });
     this.emit({ k: "sfx", n: "zap", slot: p.slot });
     this.emit({ k: "trauma", v: 0.16, slot: p.slot });
@@ -933,6 +943,12 @@ export class World {
         this.dropGem(gx, gy, Math.ceil(e.xp / 24), "xp");
       }
       this.dropGem(e.x, e.y, 0, "heal");
+      // Beating a boss patches up the squad, so you don't launch (or land) on your last HP.
+      for (const q of this.players) {
+        if (!this.isLiving(q)) continue;
+        q.hp = Math.min(q.maxHp, q.hp + q.maxHp * 0.35);
+        this.emit({ k: "text", x: q.x, y: q.y - 24, text: "HULL REPAIRED", color: PALETTE.heal, size: 18 });
+      }
       // Each boss ends its half of the loop.
       if (e.kind === "boss" && this.phase === "surface") this.setPhase("launch");
       else if (e.kind === "capital" && this.phase === "orbit") this.setPhase("descent");
@@ -943,11 +959,12 @@ export class World {
       if (this.rng.chance(0.02)) this.dropGem(e.x + 12, e.y, 0, "heal");
       // Splitters spawn children on death.
       if (e.splitInto) {
+        // Read these first: a child may reuse this very slot (it's free now), which overwrites `e`.
+        const kind = e.splitInto;
+        const { x, y } = e;
         for (let i = 0; i < 2; i++) {
           const child = this.acquireEnemy();
-          initEnemy(
-            child, e.splitInto, e.x + (Math.random() - 0.5) * 24, e.y + (Math.random() - 0.5) * 24, this.time, this.hpMul,
-          );
+          initEnemy(child, kind, x + (Math.random() - 0.5) * 24, y + (Math.random() - 0.5) * 24, this.difficultyT, this.hpMul);
         }
       }
     }

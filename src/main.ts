@@ -281,6 +281,11 @@ function startGame(): void {
     if (jump === "launch" || jump === "orbit") world.setPhase(jump);
     // ?boss=now: the phase's boss spawns immediately (Forge testing, demo capture).
     const q = new URLSearchParams(location.search);
+    // ?give=chain:3,lance:2,nova:2,orbital:3: start with these weapon levels (testing, demo capture).
+    for (const part of (q.get("give") ?? "").split(",")) {
+      const [name, lvl] = part.split(":");
+      if (name === "chain" || name === "lance" || name === "nova" || name === "orbital") world.player[name] = Math.max(0, Math.min(8, Number(lvl) || 1));
+    }
     if (q.get("boss") === "now") {
       const b = world.spawnEnemy(world.phase === "orbit" ? "capital" : "boss", world.player.x + 520, world.player.y - 120);
       // &bridge=off: start the capital ship in stage two (bridge blown off).

@@ -43,6 +43,8 @@ export const PHASES = {
   descentSeconds: 3,
   /** Seconds of orbit before the capital ship warps in. */
   orbitBossDelay: 40,
+  /** Orbit enemies start at this many seconds' worth of surface strength, then climb with time in orbit. */
+  orbitStartDifficulty: 75,
   /** Each completed loop multiplies enemy HP by this. */
   loopHpMul: 1.35,
 };
@@ -54,7 +56,7 @@ export const BOSS_INTRO_SECONDS = 2.6;
 export const SPACE = {
   thrust: 820,
   /** Fraction of velocity lost per second with no thrust (low = long drift). */
-  drag: 0.9,
+  drag: 1.4,
   /** Top speed relative to the robot's ground speed. */
   speedMul: 1.6,
 };
@@ -79,7 +81,8 @@ export interface EnemyDef {
   unlockAt: number;
   /** Relative spawn weight once unlocked. */
   weight: number;
-  shooter?: { range: number; cooldown: number; bulletSpeed: number; bulletDmg: number };
+  /** volley: bullets per shot, fanned (bosses only; default 1 for regular shooters). */
+  shooter?: { range: number; cooldown: number; bulletSpeed: number; bulletDmg: number; volley?: number };
   splitInto?: EnemyKind;
 }
 
@@ -165,13 +168,13 @@ export const BOSS: EnemyDef = {
   modelScale: 3.2,
   anim: "Walking",
   animSpeed: 0.5,
-  baseHp: 900,
+  baseHp: 700,
   baseSpeed: 46,
   touchDamage: 26,
   xp: 250,
   unlockAt: 0,
   weight: 0,
-  shooter: { range: 900, cooldown: 1.4, bulletSpeed: 200, bulletDmg: 14 },
+  shooter: { range: 900, cooldown: 2.0, bulletSpeed: 200, bulletDmg: 11, volley: 3 },
 };
 
 /**
@@ -254,7 +257,7 @@ export const CAPITAL: EnemyDef = {
   xp: 400,
   unlockAt: 0,
   weight: 0,
-  shooter: { range: 1100, cooldown: 1.1, bulletSpeed: 230, bulletDmg: 14 },
+  shooter: { range: 1100, cooldown: 1.7, bulletSpeed: 230, bulletDmg: 11, volley: 3 },
 };
 
 /** Stats for any enemy kind. */
@@ -277,6 +280,8 @@ export const DIRECTOR = {
   batchBase: 1,
   batchGrowthSeconds: 140, // batch size grows by 1 every this many seconds (half growth rate)
   bossEverySeconds: 120,
+  /** Boss HP is x(1 + runTime / this). */
+  bossHpScaleSeconds: 360,
   // Each enemy is now a skinned, animated GLB robot rather than a flat neon
   // polygon — capped lower than the 2D build so hundreds of simultaneous
   // skeleton updates don't tank the frame rate. Fewer, denser robots still

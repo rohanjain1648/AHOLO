@@ -127,7 +127,7 @@ describe("capital ship two-stage fight", () => {
       }
       return n;
     };
-    expect(shots(true)).toBeGreaterThan(shots(false) * 1.4);
+    expect(shots(true)).toBeGreaterThan(shots(false) * 1.25);
   });
 
   it("the enraged flag survives the snapshot", () => {

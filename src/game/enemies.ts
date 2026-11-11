@@ -21,7 +21,9 @@ const batchSize = (t: number): number => DIRECTOR.batchBase + Math.floor(t / DIR
 export function initEnemy(e: Enemy, kind: EnemyKind, x: number, y: number, t: number, hpMul = 1): void {
   const def = defFor(kind);
   const boss = isBossKind(kind);
-  const hs = hpScale(t) * (boss ? 1 + t / 240 : 1) * hpMul;
+  // Bosses scale gently with run time. (They used to also ride the regular-enemy curve, which made
+  // the first Warden a ~2,800 HP wall that most runs never beat, and the Warden gates orbit.)
+  const hs = (boss ? 1 + t / DIRECTOR.bossHpScaleSeconds : hpScale(t)) * hpMul;
   const ss = speedScale(t);
   e.kind = kind;
   e.x = x;
