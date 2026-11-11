@@ -1,12 +1,11 @@
 // Headless screenshot capture for checking effects and for the hackathon
 // report. Plays the production build (npm run build first) with fire held,
-// and saves frames into docs/report/auto/:
-//   - kill-N.png  a few frames right after kills (shatter deaths)
-//   - intro.png   mid boss intro (spawned via the dev ?boss=now hook? no: a
-//                 production build has no dev hooks, so it waits for nothing;
-//                 use `node test/capture.mjs dev` against the dev server)
-// Usage:  node test/capture.mjs            (production preview, port 4188)
-//         node test/capture.mjs dev 5191   (running dev server, enables ?boss=now)
+// and saves frames into docs/report/auto/ (git-ignored; copy keepers to docs/report/):
+//   - kill-N.png  frames right after kills (shatter deaths)
+//   - intro.png   the boss intro: dev mode only, since it spawns the boss with
+//                 the dev-only ?boss=now switch
+// Usage:  node test/capture.mjs            (production preview, port 4188; run npm run build first)
+//         node test/capture.mjs dev 5191   (a running dev server; don't edit src meanwhile, HMR reloads the page)
 import { mkdirSync } from "node:fs";
 import { chromium } from "playwright";
 import { preview } from "vite";
