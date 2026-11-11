@@ -31,6 +31,8 @@ export interface PlayerSnap {
   speed: number;
   blaster: number;
   nova: number;
+  chain: number;
+  lance: number;
   pingCd: number;
   recoilT: number;
 }
@@ -91,7 +93,7 @@ const KINDS: EnemyKind[] = [
   "interceptor", "bomber", "kamikaze", "asteroid", "capital",
 ];
 const PHASE_IDS: Phase[] = ["surface", "launch", "orbit", "descent"];
-const VERSION = 6;
+const VERSION = 7;
 const flags = (f: number) => ({ forged: (f & 1) !== 0, enraged: (f & 2) !== 0 });
 /** A pooled bullet/gem that moved further than this between snapshots is a recycled slot, not motion. */
 const REUSE_JUMP = 150;
@@ -129,7 +131,7 @@ export function captureSnapshot(w: World, seq: number, waitingMask: number, effe
       slot: p.slot, active: p.active, x: p.x, y: p.y, vx: p.vx, vy: p.vy, facing: p.facing,
       hp: p.hp, maxHp: p.maxHp, downed: p.downed, reviveT: p.reviveT, invuln: p.invuln,
       orbital: p.orbital, orbitAngle: p.orbitAngle, pickupRadius: p.pickupRadius, kills: p.kills,
-      speed: p.speed, blaster: p.blaster, nova: p.nova, pingCd: p.pingCd, recoilT: p.recoilT,
+      speed: p.speed, blaster: p.blaster, nova: p.nova, chain: p.chain, lance: p.lance, pingCd: p.pingCd, recoilT: p.recoilT,
     })),
     enemies,
     bullets: pool(w.bullets),
@@ -202,6 +204,8 @@ export function encodeSnapshot(s: Snapshot): Uint8Array {
     w.u8(p.orbital);
     w.u8(p.blaster);
     w.u8(p.nova);
+    w.u8(p.chain);
+    w.u8(p.lance);
     w.u16(p.kills);
   }
 
@@ -292,7 +296,7 @@ export function decodeSnapshot(buf: ArrayBuffer | Uint8Array): Snapshot {
     s.players.push({
       slot, active: (flags & 1) !== 0, downed: (flags & 2) !== 0,
       x, y, vx, vy, facing, hp, maxHp, reviveT, invuln, orbitAngle, pickupRadius, speed, pingCd, recoilT,
-      orbital: r.u8(), blaster: r.u8(), nova: r.u8(), kills: r.u16(),
+      orbital: r.u8(), blaster: r.u8(), nova: r.u8(), chain: r.u8(), lance: r.u8(), kills: r.u16(),
     });
   }
 
@@ -381,6 +385,8 @@ export function applySnapshot(w: World, a: Snapshot, b: Snapshot, t: number, loc
     p.speed = pb.speed;
     p.blaster = pb.blaster;
     p.nova = pb.nova;
+    p.chain = pb.chain;
+    p.lance = pb.lance;
     p.pingCd = pb.pingCd;
     p.recoilT = pb.recoilT;
   }

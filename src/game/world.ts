@@ -427,6 +427,22 @@ export class World {
    */
   stepPlayerMovement(p: Player, input: PlayerInput, dt: number): void {
     if (this.phase === "launch" || this.phase === "descent") return;
+    if (p.dashCd > 0) p.dashCd -= dt;
+    if (input.dash && p.dashCd <= 0 && p.dashT <= 0) this.startDash(p, input);
+    if (p.dashT > 0) {
+      // Dashing: a straight burst that ignores steering and the speed cap.
+      p.dashT -= dt;
+      p.vx = p.dashVx;
+      p.vy = p.dashVy;
+      this.emit({ k: "spark", x: p.x, y: p.y, color: PALETTE.player, count: 2, speed: 60, size: 3 });
+      if (p.dashT <= 0) {
+        p.dashT = 0;
+        p.vx *= 0.4; // bleed off the burst so you don't skid across the arena
+        p.vy *= 0.4;
+      }
+      this.integratePlayer(p, dt);
+      return;
+    }
     if (this.phase === "orbit") {
       // Ship: thrust adds velocity, a little drag bleeds it off, so you drift and slide.
       const max = p.speed * SPACE.speedMul;
@@ -447,13 +463,7 @@ export class World {
       p.vx += (targetVx - p.vx) * Math.min(1, dt * 16);
       p.vy += (targetVy - p.vy) * Math.min(1, dt * 16);
     }
-    const nx = p.x + p.vx * dt;
-    const ny = p.y + p.vy * dt;
-    // Hitting the arena edge kills that axis of velocity (matters for drifting ships).
-    if (Math.abs(nx) > WORLD.half) p.vx = 0;
-    if (Math.abs(ny) > WORLD.half) p.vy = 0;
-    p.x = clamp(nx, -WORLD.half, WORLD.half);
-    p.y = clamp(ny, -WORLD.half, WORLD.half);
+    this.integratePlayer(p, dt);
 
     // Twin-input control: keys move the robot; the held cursor only turns it
     // and fires — it never moves it. Aim wins over movement for facing, and
@@ -468,13 +478,40 @@ export class World {
     }
   }
 
+  private integratePlayer(p: Player, dt: number): void {
+    const nx = p.x + p.vx * dt;
+    const ny = p.y + p.vy * dt;
+    // Hitting the arena edge kills that axis of velocity (matters for drifting ships).
+    if (Math.abs(nx) > WORLD.half) p.vx = 0;
+    if (Math.abs(ny) > WORLD.half) p.vy = 0;
+    p.x = clamp(nx, -WORLD.half, WORLD.half);
+    p.y = clamp(ny, -WORLD.half, WORLD.half);
+  }
+
+  /** Begin a dash along the move direction (or where the robot faces), invulnerable for its length. */
+  private startDash(p: Player, input: PlayerInput): void {
+    const l = len(input.moveX, input.moveY);
+    const dx = l > 0.01 ? input.moveX / l : Math.cos(p.facing);
+    const dy = l > 0.01 ? input.moveY / l : Math.sin(p.facing);
+    const d = PLAYER.dash;
+    p.dashT = d.seconds;
+    p.dashCd = d.cooldown;
+    p.dashVx = dx * d.speed;
+    p.dashVy = dy * d.speed;
+    p.invuln = Math.max(p.invuln, d.seconds + 0.12);
+    this.emit({ k: "sfx", n: "dash", slot: p.slot });
+    this.emit({ k: "spark", x: p.x, y: p.y, color: PALETTE.player, count: 14, speed: 260, size: 3 });
+  }
+
   /**
    * Host: accept a remote client's self-reported pose. The jump is clamped so
    * a stale or bogus packet can't teleport the robot across the arena.
    */
-  setRemotePose(slot: number, x: number, y: number, facing: number, firing: boolean): void {
+  setRemotePose(slot: number, x: number, y: number, facing: number, firing: boolean, dashing = false): void {
     const p = this.players[slot];
     if (!p || !p.active) return;
+    // The client dashes on its own screen; the host honours the i-frames it earned.
+    if (dashing) p.invuln = Math.max(p.invuln, PLAYER.dash.seconds + 0.12);
     let dx = x - p.x;
     let dy = y - p.y;
     const d = len(dx, dy);
@@ -687,6 +724,105 @@ export class World {
         this.emit({ k: "trauma", v: 0.18, slot: p.slot });
       }
     }
+
+    // Chain Lightning: arcs from the nearest enemy to its neighbours.
+    if (p.chain > 0) {
+      p.chainCd -= dt;
+      if (p.chainCd <= 0) {
+        const first = this.nearestEnemy(p.x, p.y, p.chainReach);
+        if (first) {
+          p.chainCd = p.chainInterval;
+          this.fireChain(p, first);
+        } else {
+          p.chainCd = 0.15; // nothing in reach: look again soon
+        }
+      }
+    }
+
+    // Rail Lance: a piercing beam toward the nearest enemy.
+    if (p.lance > 0) {
+      p.lanceCd -= dt;
+      if (p.lanceCd <= 0) {
+        const target = this.nearestEnemy(p.x, p.y, p.lanceLength * 0.9);
+        if (target) {
+          p.lanceCd = p.lanceInterval;
+          this.fireLance(p, target);
+        } else {
+          p.lanceCd = 0.2;
+        }
+      }
+    }
+  }
+
+  /** Nearest living enemy to (x, y) within `maxR`, ignoring those in `skip`. */
+  private nearestEnemy(x: number, y: number, maxR: number, skip?: ReadonlySet<Enemy>): Enemy | null {
+    let best: Enemy | null = null;
+    let bestD = maxR * maxR;
+    for (const e of this.enemies) {
+      if (e.dead || (skip && skip.has(e))) continue;
+      const d = dist2(x, y, e.x, e.y);
+      if (d < bestD) {
+        bestD = d;
+        best = e;
+      }
+    }
+    return best;
+  }
+
+  /** A line of lingering sparks from (x1, y1) to (x2, y2): how bolts and beams are drawn. */
+  private bolt(x1: number, y1: number, x2: number, y2: number, color: string, size: number, jitter: number): void {
+    const l = dist(x1, y1, x2, y2);
+    const n = Math.max(2, Math.floor(l / 22));
+    const nx = l > 0 ? -(y2 - y1) / l : 0;
+    const ny = l > 0 ? (x2 - x1) / l : 0;
+    for (let i = 0; i <= n; i++) {
+      const t = i / n;
+      const j = i === 0 || i === n ? 0 : (this.rng.next() - 0.5) * 2 * jitter;
+      this.emit({ k: "spark", x: x1 + (x2 - x1) * t + nx * j, y: y1 + (y2 - y1) * t + ny * j, color, count: 1, speed: 6, size });
+    }
+  }
+
+  private fireChain(p: Player, first: Enemy): void {
+    const hit = new Set<Enemy>();
+    let fromX = p.x;
+    let fromY = p.y;
+    let target: Enemy | null = first;
+    let dmg = p.chainDamage;
+    for (let i = 0; i < p.chainTargets && target; i++) {
+      this.bolt(fromX, fromY, target.x, target.y, PALETTE.chain, 3.4, 9);
+      hit.add(target);
+      fromX = target.x;
+      fromY = target.y;
+      this.damageEnemy(target, dmg, false, target.x, target.y, 50, p);
+      dmg *= 0.85; // each jump hits a little softer
+      target = this.nearestEnemy(fromX, fromY, p.chainHop, hit);
+    }
+    this.emit({ k: "sfx", n: "zap", slot: p.slot });
+    this.emit({ k: "trauma", v: 0.06, slot: p.slot });
+  }
+
+  private fireLance(p: Player, target: Enemy): void {
+    const a = angleTo(p.x, p.y, target.x, target.y);
+    const cos = Math.cos(a);
+    const sin = Math.sin(a);
+    const length = p.lanceLength;
+    const half = p.lanceWidth / 2;
+    for (const e of this.enemies) {
+      if (e.dead) continue;
+      // Distance along the beam, and sideways off it.
+      const rx = e.x - p.x;
+      const ry = e.y - p.y;
+      const along = rx * cos + ry * sin;
+      const side = Math.abs(-rx * sin + ry * cos);
+      if (along < 0 || along > length + e.radius || side > half + e.radius) continue;
+      this.damageEnemy(e, p.lanceDamage, false, e.x, e.y, 0, p);
+      e.kbx += cos * 140;
+      e.kby += sin * 140;
+    }
+    this.bolt(p.x, p.y, p.x + cos * length, p.y + sin * length, PALETTE.lance, 5, 3);
+    this.emit({ k: "spark", x: p.x + cos * 24, y: p.y + sin * 24, color: PALETTE.lance, count: 10, speed: 280, size: 4 });
+    this.emit({ k: "sfx", n: "zap", slot: p.slot });
+    this.emit({ k: "trauma", v: 0.16, slot: p.slot });
   }
 
   private fireBullet(p: Player, angle: number): void {

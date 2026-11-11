@@ -136,6 +136,16 @@ export class Audio {
     this.blip(200, 0.3, "sawtooth", 0.16, 60);
     this.noise(0.2, 0.1, 200);
   }
+  /** Dash: a quick rising whoosh. */
+  dash(): void {
+    this.noise(0.16, 0.07, 1800);
+    this.blip(260, 0.14, "sine", 0.05, 900);
+  }
+  /** Chain Lightning / Rail Lance: a bright electric crack. */
+  zap(): void {
+    this.noise(0.1, 0.07, 3500);
+    this.blip(1500, 0.09, "sawtooth", 0.05, 300);
+  }
   pickup(): void {
     this.blip(880, 0.06, "sine", 0.05, 1200);
   }

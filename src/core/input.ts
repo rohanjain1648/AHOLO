@@ -199,6 +199,8 @@ export class Input {
       aimX: this.aim.x,
       aimY: this.aim.y,
       firing: this.aim.active || this.moveFromTouch,
+      // One edge per press: Shift or E.
+      dash: this.consumeKey("ShiftLeft") || this.consumeKey("ShiftRight") || this.consumeKey("KeyE"),
     };
   }
 

@@ -59,10 +59,20 @@ export class Player {
   blaster = 1;
   orbital = 0;
   nova = 0;
+  chain = 0;
+  lance = 0;
+
+  // --- Dash ---
+  dashCd = 0; // seconds until the next dash
+  dashT = 0; // seconds left in the current dash
+  dashVx = 0;
+  dashVy = 0;
 
   // --- Weapon runtime cooldowns / state ---
   blasterCd = 0;
   novaCd = 0;
+  chainCd = 0;
+  lanceCd = 0;
   orbitAngle = 0;
   regenFrac = 0; // accumulates fractional hp
 
@@ -89,6 +99,11 @@ export class Player {
     this.blaster = 1;
     this.orbital = 0;
     this.nova = 0;
+    this.chain = 0;
+    this.lance = 0;
+    this.dashCd = this.dashT = this.dashVx = this.dashVy = 0;
+    this.chainCd = 0;
+    this.lanceCd = 0;
     this.blasterCd = 0;
     this.novaCd = 0;
     this.orbitAngle = 0;
@@ -143,6 +158,40 @@ export class Player {
   }
   get novaDamage(): number {
     return (14 + this.nova * 8) * this.damageMul;
+  }
+
+  /** Chain Lightning: seconds between zaps. */
+  get chainInterval(): number {
+    return clamp(1.9 - this.chain * 0.14, 0.75, 1.9) / this.fireRateMul;
+  }
+  /** Targets one zap can hit (the first plus its jumps). */
+  get chainTargets(): number {
+    return 2 + this.chain;
+  }
+  get chainDamage(): number {
+    return (9 + this.chain * 5) * this.damageMul;
+  }
+  /** How far the first arc reaches from you. */
+  get chainReach(): number {
+    return 340 + this.chain * 15;
+  }
+  /** How far an arc jumps from one enemy to the next. */
+  get chainHop(): number {
+    return 150 + this.chain * 10;
+  }
+
+  /** Rail Lance: seconds between shots. */
+  get lanceInterval(): number {
+    return clamp(3.6 - this.lance * 0.25, 1.7, 3.6) / this.fireRateMul;
+  }
+  get lanceDamage(): number {
+    return (20 + this.lance * 10) * this.damageMul;
+  }
+  get lanceLength(): number {
+    return 620 + this.lance * 20;
+  }
+  get lanceWidth(): number {
+    return 30 + this.lance * 4;
   }
 
   /** Apply incoming damage through armor + i-frames. Returns true if it hurt. */

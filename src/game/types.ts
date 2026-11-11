@@ -119,6 +119,8 @@ export interface PlayerInput {
   aimX: number;
   aimY: number;
   firing: boolean;
+  /** Dash pressed this tick (a one-tick edge). */
+  dash: boolean;
 }
 
 export const IDLE_INPUT: Readonly<PlayerInput> = Object.freeze({
@@ -128,4 +130,5 @@ export const IDLE_INPUT: Readonly<PlayerInput> = Object.freeze({
   aimX: 1,
   aimY: 0,
   firing: false,
+  dash: false,
 });

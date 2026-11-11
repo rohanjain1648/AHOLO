@@ -91,7 +91,7 @@ export class ClientSession {
     const period = 1 / COOP.poseHz;
     if (this.poseAcc >= period) {
       this.poseAcc -= period;
-      this.sendGame({ k: "pose", x: p.x, y: p.y, facing: p.facing, firing: input.firing && !p.downed });
+      this.sendGame({ k: "pose", x: p.x, y: p.y, facing: p.facing, firing: input.firing && !p.downed, dash: p.dashT > 0 });
     }
   }
 

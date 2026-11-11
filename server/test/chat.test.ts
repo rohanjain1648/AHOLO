@@ -281,7 +281,9 @@ test("a spectator's chatJoin gets only the crowd channel and isn't added to the 
   const hostChat = await until(() => host.last("chat"));
   expect(got.squadId).toBeNull();
   expect(got.watchId).toBe(hostChat.watchId);
-  expect(chat.log.some((l) => l.includes("f1"))).toBe(false);
+  // The user id is the last word of "squad <id> <owner>" / "add <id> <user>" lines. (Checking
+  // for the substring "f1" anywhere failed ~1 run in 10: the random channel ids can contain it.)
+  expect(chat.log.some((l) => l.split(" ").at(-1) === "f1")).toBe(false);
 });
 
 // ---- HTTP: /chat/session --------------------------------------------------------

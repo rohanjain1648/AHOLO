@@ -11,7 +11,7 @@ import type { Particles } from "./particles";
  * `slot` targets one player's screen (their shots, their hurt flash); -1 means
  * everyone.
  */
-export type Sfx = "shoot" | "hit" | "kill" | "bigKill" | "hurt" | "pickup" | "levelup" | "bossWarn";
+export type Sfx = "shoot" | "hit" | "kill" | "bigKill" | "hurt" | "pickup" | "levelup" | "bossWarn" | "dash" | "zap";
 
 export type Effect =
   | { k: "sfx"; n: Sfx; slot: number }

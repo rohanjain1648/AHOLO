@@ -101,7 +101,7 @@ export class HostSession {
   }
 
   onClientMessage(from: number, m: ClientToHost): void {
-    if (m.k === "pose") this.world.setRemotePose(from, m.x, m.y, m.facing, m.firing);
+    if (m.k === "pose") this.world.setRemotePose(from, m.x, m.y, m.facing, m.firing, m.dash === true);
     else if (m.k === "pick") this.pick(from, m.round, m.index);
     else if (m.k === "ping") this.world.addPing(from);
     else if (m.k === "hello" && isArchetypeId(m.archetype)) this.classes.set(from, m.archetype);

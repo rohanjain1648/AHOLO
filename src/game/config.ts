@@ -27,6 +27,8 @@ export const PALETTE = {
   enemyBullet: "#ff5a5a",
   text: "#eaf6ff",
   danger: "#ff3d6e",
+  chain: "#b48cff",
+  lance: "#ffcf5a",
 } as const;
 
 export type LandKind = "grunt" | "fast" | "tank" | "splitter" | "shooter";
@@ -289,6 +291,8 @@ export const PLAYER = {
   basePickupRadius: 130,
   iFrames: 0.7, // invulnerability after a hit
   baseRegen: 0, // hp/sec, raised by upgrades
+  /** Dash (Shift / E): a short invulnerable burst along your heading. */
+  dash: { seconds: 0.15, speed: 1000, cooldown: 2.4 },
 };
 
 /** Co-op tuning. Every multiplier is written so a 1-player squad gets exactly 1. */

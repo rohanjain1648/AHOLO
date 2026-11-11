@@ -81,6 +81,12 @@ export class Hangar {
     this.camera.lookAt(0, h * 0.45, 0);
   }
 
+  /** Take the current model off the turntable (while the next one downloads). */
+  clear(): void {
+    if (this.current) this.turntable.remove(this.current.root);
+    this.current = null;
+  }
+
   update(dt: number): void {
     this.t += dt;
     this.turntable.rotation.y += dt * 0.45;

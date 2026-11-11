@@ -613,6 +613,7 @@ function openHangar(): void {
 async function showHangarItem(): Promise<void> {
   const item = hangarItems[hangarIndex];
   hangarLoading = true;
+  if (!models.isGenerated(item.role)) hangar.clear(); // a lazy gallery boss still downloading
   try {
     await models.loadLazy(item.role).catch(() => undefined); // no-op unless it's a lazy gallery boss
     let h = hangarHandles.get(item.role);

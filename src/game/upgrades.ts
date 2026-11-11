@@ -75,6 +75,50 @@ export const UPGRADES: Upgrade[] = [
     apply: (p) => { p.nova++; },
   },
   {
+    id: "chain_unlock",
+    name: "Chain Lightning",
+    color: PALETTE.chain,
+    icon: "↯",
+    max: 1,
+    weight: 8,
+    desc: () => "NEW WEAPON: lightning arcs from the nearest enemy to its neighbours.",
+    eligible: (p) => p.chain === 0,
+    apply: (p) => { p.chain = 1; },
+  },
+  {
+    id: "chain",
+    name: "Storm Coils",
+    color: PALETTE.chain,
+    icon: "↯",
+    max: 6,
+    weight: 7,
+    desc: () => "More arcs per zap, harder hits, faster recharge.",
+    eligible: (p) => p.chain >= 1,
+    apply: (p) => { p.chain++; },
+  },
+  {
+    id: "lance_unlock",
+    name: "Rail Lance",
+    color: PALETTE.lance,
+    icon: "▬",
+    max: 1,
+    weight: 8,
+    desc: () => "NEW WEAPON: a piercing beam through everything in a line.",
+    eligible: (p) => p.lance === 0,
+    apply: (p) => { p.lance = 1; },
+  },
+  {
+    id: "lance",
+    name: "Lance Capacitor",
+    color: PALETTE.lance,
+    icon: "▬",
+    max: 6,
+    weight: 7,
+    desc: () => "Longer, wider, harder beam, charged faster.",
+    eligible: (p) => p.lance >= 1,
+    apply: (p) => { p.lance++; },
+  },
+  {
     id: "damage",
     name: "Overcharge",
     color: "#ff8a5a",
@@ -190,6 +234,8 @@ const upgradeLevel = (u: Upgrade, p: Player, taken: Record<string, number>): num
   if (u.id === "blaster") return p.blaster;
   if (u.id === "orbital") return p.orbital;
   if (u.id === "nova") return p.nova;
+  if (u.id === "chain") return p.chain;
+  if (u.id === "lance") return p.lance;
   return taken[u.id] ?? 0;
 };
 

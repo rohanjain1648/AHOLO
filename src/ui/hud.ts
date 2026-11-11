@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import { clamp } from "../core/math";
-import { COOP, PALETTE } from "../game/config";
+import { COOP, PALETTE, PLAYER } from "../game/config";
 import type { World } from "../game/world";
 import type { Rect } from "./screens";
 
@@ -76,6 +76,16 @@ export function drawHud(
   ctx.textBaseline = "middle";
   ctx.fillText(`${Math.max(0, Math.ceil(p.hp))} / ${p.maxHp}`, pad + 8, 36 + 7);
 
+  // Dash meter (under HP): fills as it recharges, lights up when ready.
+  const dashReady = p.dashCd <= 0;
+  const dashFrac = dashReady ? 1 : 1 - p.dashCd / PLAYER.dash.cooldown;
+  bar(ctx, pad, 56, hpW * 0.55, 6, dashFrac, dashReady ? PALETTE.player : "rgba(63,233,255,0.4)", "rgba(255,255,255,0.08)");
+  ctx.font = "800 10px 'Segoe UI', system-ui, sans-serif";
+  ctx.textAlign = "left";
+  ctx.textBaseline = "middle";
+  ctx.fillStyle = dashReady ? PALETTE.player : "rgba(230,244,255,0.5)";
+  ctx.fillText(dashReady ? "DASH  SHIFT / E" : "DASH", pad + hpW * 0.55 + 8, 59);
+
   // Timer + kills (top-center)
   ctx.textAlign = "center";
   ctx.textBaseline = "top";
@@ -103,6 +113,8 @@ export function drawHud(
   ];
   if (p.orbital > 0) chips.push({ icon: "◉", lvl: p.orbital, color: PALETTE.orbital });
   if (p.nova > 0) chips.push({ icon: "◎", lvl: p.nova, color: PALETTE.nova });
+  if (p.chain > 0) chips.push({ icon: "↯", lvl: p.chain, color: PALETTE.chain });
+  if (p.lance > 0) chips.push({ icon: "▬", lvl: p.lance, color: PALETTE.lance });
   let cx = pad;
   const cy = h - 44;
   for (const c of chips) {

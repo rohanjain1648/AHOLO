@@ -8,7 +8,7 @@ import type { ClientToRelay } from "./relayProtocol";
  * binary snapshots (see snapshot.ts).
  */
 export type ClientToHost =
-  | { k: "pose"; x: number; y: number; facing: number; firing: boolean }
+  | { k: "pose"; x: number; y: number; facing: number; firing: boolean; dash?: boolean }
   | { k: "pick"; round: number; index: number }
   | { k: "ping" }
   /** Sent after joining: this player's robot class (app players only). */
