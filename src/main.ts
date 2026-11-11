@@ -271,10 +271,19 @@ function enterRun(): void {
   history.pushState({ novaGame: true }, "", location.href);
 }
 
-function startGame(): void {
+/** An orbit-shortcut run skips the whole surface half, so it must not set a best time. */
+let shortcutRun = false;
+
+function startGame(from: "surface" | "orbit" = "surface"): void {
   world.localSlot = 0;
   world.recordEffects = false;
   world.reset();
+  shortcutRun = from === "orbit";
+  if (shortcutRun) {
+    // Start with the launch: the ground falls away, then the fleet arrives.
+    world.setPhase("launch");
+    showToast("Orbit shortcut: this run won't count toward your best time");
+  }
   // Dev only: ?phase=launch|orbit jumps straight to space for testing and demo capture.
   if (import.meta.env.DEV) {
     const jump = new URLSearchParams(location.search).get("phase");
@@ -302,7 +311,7 @@ function openLevelUp(): void {
 
 function finishRun(): void {
   const s = world.stats;
-  if (!best || s.time > best.time) {
+  if (!shortcutRun && (!best || s.time > best.time)) {
     best = { ...s };
     saveBest(BEST_KEY, best);
     newBest = true;
@@ -313,7 +322,7 @@ function finishRun(): void {
 /** Abandon the current run and return to the title screen (still banks a new best). */
 function quitToMenu(): void {
   const s = world.stats;
-  if (!best || s.time > best.time) {
+  if (!shortcutRun && (!best || s.time > best.time)) {
     best = { ...s };
     saveBest(BEST_KEY, best);
   }
@@ -657,6 +666,12 @@ function handleMenu(): void {
     audio.unlock();
     audio.toggleMute();
     input.consumeConfirm();
+    return;
+  }
+  if (click && pointInRect(click.x, click.y, titleButtonRects(W, H).orbit)) {
+    input.consumeConfirm();
+    audio.unlock();
+    startGame("orbit");
     return;
   }
   if (click && pointInRect(click.x, click.y, titleButtonRects(W, H).hangar)) {

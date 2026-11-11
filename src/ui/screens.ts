@@ -95,8 +95,20 @@ const titleScale = (h: number): number => Math.min(1, Math.max(0.6, h / 760));
  * out pre-scale and mapped through the same transform `drawTitle` draws with,
  * so hit-testing matches what's on screen at any viewport height.
  */
-export function titleButtonRects(w: number, h: number): { solo: Rect; host: Rect; join: Rect; hangar: Rect; forge: Rect } {
+/** Pre-scale split of the Play row: PLAY SOLO, plus a smaller ORBIT shortcut beside it. */
+export function playRowRects(w: number, h: number): { solo: Rect; orbit: Rect } {
   const play = titlePlayButtonRect(w, h);
+  const gap = 12;
+  const soloW = (play.w - gap) * 0.62;
+  return {
+    solo: { ...play, w: soloW },
+    orbit: { x: play.x + soloW + gap, y: play.y, w: play.w - soloW - gap, h: play.h },
+  };
+}
+
+export function titleButtonRects(w: number, h: number): { solo: Rect; orbit: Rect; host: Rect; join: Rect; hangar: Rect; forge: Rect } {
+  const play = titlePlayButtonRect(w, h);
+  const row = playRowRects(w, h);
   const panelTop = titlePanelRect(w, h).y;
   const s = titleScale(h);
   const gap = 12;
@@ -109,7 +121,8 @@ export function titleButtonRects(w: number, h: number): { solo: Rect; host: Rect
     h: r.h * s,
   });
   return {
-    solo: map(play),
+    solo: map(row.solo),
+    orbit: map(row.orbit),
     host: map({ x: play.x, y: rowY, w: half, h: 48 }),
     join: map({ x: play.x + half + gap, y: rowY, w: half, h: 48 }),
     hangar: map({ x: play.x, y: rowY + 48 + gap, w: half, h: 44 }),
@@ -287,8 +300,8 @@ export function drawTitle(
   ctx.fillText("HOW TO PLAY", w / 2, panelTop + 24);
 
   const controlsMaxW = panel.w * 0.92;
-  const controls1 = "Move: WASD / Arrows  •  Hold click: aim + fire  •  Touch: drag";
-  const controls2 = "Pick upgrades on level-up  •  M mutes  •  ESC pauses";
+  const controls1 = "Move: WASD  •  Hold click: aim + fire  •  Dash: Shift / E  •  Touch: drag";
+  const controls2 = "Beat the Warden (2:00) to launch into orbit  •  ▲ ORBIT jumps straight there";
   const controlsSize = Math.min(
     fitFontSize(ctx, controls1, 500, controlsMaxW, 14),
     fitFontSize(ctx, controls2, 500, controlsMaxW, 14),
@@ -311,6 +324,8 @@ export function drawTitle(
     { color: PALETTE.bullet, label: "Blaster" },
     { color: PALETTE.orbital, label: "Orbital Shards" },
     { color: PALETTE.nova, label: "Pulse Nova" },
+    { color: PALETTE.chain, label: "Chain Lightning" },
+    { color: PALETTE.lance, label: "Rail Lance" },
   ];
   drawLegendRow(ctx, w, panelTop + 166, "WEAPONS", weaponItems);
 
@@ -323,7 +338,9 @@ export function drawTitle(
     ctx.fillText(bestText, w / 2, panelTop + panelH + 28);
   }
 
-  drawButton(ctx, titlePlayButtonRect(w, h), "▶  PLAY SOLO", time);
+  const playRow = playRowRects(w, h);
+  drawButton(ctx, playRow.solo, "▶  PLAY SOLO", time, PALETTE.player, 17);
+  drawButton(ctx, playRow.orbit, "▲  ORBIT", time, "#9d7bff", 17);
   ctx.restore(); // closes the panelScale transform
 
   // Co-op row (already in screen space).
