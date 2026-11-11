@@ -1,14 +1,33 @@
 # Render blueprint for the NOVA SWARM co-op relay (Render -> New -> Blueprint).
-# The static game itself stays on Vercel; point VITE_RELAY_URL there at
-# wss://<this service>.onrender.com.
+# The static game itself is on Vercel; set VITE_RELAY_URL there to
+# wss://<this service>.onrender.com and redeploy.
+#
+# `sync: false` secrets are NOT stored in git: Render asks for them when the
+# blueprint is first applied (or set them under Environment afterwards).
 services:
   - type: web
     name: novaswarm-relay
     runtime: node
-    plan: free
+    plan: free # sleeps after ~15 min idle; use "starter" ($7/mo) to keep it awake
     buildCommand: npm --prefix server ci
     startCommand: npm --prefix server start
     healthCheckPath: /health
     envVars:
       - key: NODE_VERSION
         value: "22"
+      # Aholo Lux3D key for Forge (boss prompts -> 3D). Without it Forge is off
+      # and the game falls back to the pre-forged gallery bosses.
+      - key: LUX3D_API_KEY
+        sync: false
+      # Forge spending limits (each forge costs Lux3D credits).
+      - key: FORGE_PER_IP_PER_HOUR
+        value: "3"
+      - key: FORGE_PER_DAY
+        value: "40"
+      # Nexconn squad chat / spectators. Optional: without these the game runs, minus chat.
+      - key: NEXCONN_APP_KEY
+        sync: false
+      - key: NEXCONN_APP_SECRET
+        sync: false
+      - key: NEXCONN_API_BASE
+        value: https://api.sg-light-api.com
